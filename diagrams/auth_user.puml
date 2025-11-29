@@ -1,5 +1,7 @@
 @startuml
 title Auth & User Module
+left to right direction
+skinparam linetype ortho
 
 class AuthController {
   +login(username, password)

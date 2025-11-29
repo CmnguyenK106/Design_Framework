@@ -1,5 +1,7 @@
 @startuml
 title Messaging Module
+left to right direction
+skinparam linetype ortho
 
 class MessageController {
   +listConversations(userId, filters)

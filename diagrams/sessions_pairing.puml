@@ -1,5 +1,7 @@
 @startuml
 title Sessions & Pairing Module
+left to right direction
+skinparam linetype ortho
 
 class SessionController {
   +listSessions(filters)

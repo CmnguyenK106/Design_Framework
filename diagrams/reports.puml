@@ -1,5 +1,7 @@
 @startuml
 title Reporting Module
+left to right direction
+skinparam linetype ortho
 
 class ReportController {
   +overview()

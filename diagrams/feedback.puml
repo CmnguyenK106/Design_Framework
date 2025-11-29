@@ -1,5 +1,7 @@
 @startuml
 title Feedback Module
+left to right direction
+skinparam linetype ortho
 
 class FeedbackController {
   +list(filters)

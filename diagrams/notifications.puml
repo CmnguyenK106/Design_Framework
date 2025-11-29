@@ -1,5 +1,7 @@
 @startuml
 title Notifications Module
+left to right direction
+skinparam linetype ortho
 
 class NotificationController {
   +list(recipientId, filters)

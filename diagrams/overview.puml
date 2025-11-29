@@ -1,5 +1,7 @@
 @startuml
 title Tutor Support System - Overview Class Diagram
+left to right direction
+skinparam linetype ortho
 
 class User {
   +id: string
