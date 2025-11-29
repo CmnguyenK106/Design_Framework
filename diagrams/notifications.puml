@@ -1,0 +1,46 @@
+@startuml
+title Notifications Module
+
+class NotificationController {
+  +list(recipientId, filters)
+  +markRead(id)
+  +markAllRead(recipientId)
+  +send(payload)
+  +broadcast(payload)
+  +settings(recipientId)
+  +updateSettings(recipientId, payload)
+  +adminStats()
+  +adminSystemAlert(payload)
+}
+
+class Notification {
+  +id: string
+  +recipientId: string
+  +type: enum(session_reminder, pairing, feedback, progress, system)
+  +title: string
+  +content: string
+  +channels: string[]
+  +priority: enum(low, normal, high)
+  +status: enum(unread, read)
+  +createdAt: datetime
+  +scheduledAt: datetime
+}
+
+class NotificationSetting {
+  +recipientId: string
+  +inApp: boolean
+  +email: boolean
+  +sms: boolean
+}
+
+class User {
+  +id: string
+  +role: string
+}
+
+NotificationController --> Notification
+NotificationController --> NotificationSetting
+User "1" -- "0..*" Notification : receives
+User "1" -- "1" NotificationSetting
+
+@enduml

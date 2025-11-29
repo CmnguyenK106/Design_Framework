@@ -1,0 +1,51 @@
+@startuml
+title Auth & User Module
+
+class AuthController {
+  +login(username, password)
+  +refreshToken(token)
+  +logout(token)
+}
+
+class UserController {
+  +getProfile(userId)
+  +updateProfile(userId, payload)
+  +updateAvatar(userId, file)
+  +changePassword(userId, current, next)
+  +adminListUsers(filters)
+  +adminCreateUser(payload)
+  +adminUpdateUser(id, payload)
+  +adminDeleteUser(id)
+  +adminAssignRole(id, role)
+}
+
+class User {
+  +id: string
+  +username: string
+  +name: string
+  +email: string
+  +role: string
+  +avatar: string
+  +skills: string[]
+  +settings: NotificationSetting
+}
+
+class Device {
+  +id: string
+  +name: string
+  +lastLogin: datetime
+}
+
+class NotificationSetting {
+  +emailNotif: boolean
+  +appNotif: boolean
+  +publicProfile: boolean
+  +allowContact: boolean
+}
+
+AuthController --> User : issues JWT
+UserController --> User
+User "1" -- "0..*" Device
+User "1" -- "1" NotificationSetting
+
+@enduml

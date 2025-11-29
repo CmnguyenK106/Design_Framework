@@ -1,0 +1,61 @@
+@startuml
+title Messaging Module
+
+class MessageController {
+  +listConversations(userId, filters)
+  +listMessages(conversationId)
+  +createConversation(participants, type)
+  +sendMessage(conversationId, senderId, content, attachments)
+  +deleteMessage(id)
+  +deleteConversation(id)
+  +markConversation(conversationId)
+  +muteConversation(conversationId)
+}
+
+class PresenceController {
+  +online(userId)
+  +offline(userId)
+  +listOnline()
+}
+
+class Conversation {
+  +id: string
+  +participants: string[]
+  +type: enum(direct, group)
+  +lastMessage: Message
+  +unreadCount: number
+  +isMarked: boolean
+  +isMuted: boolean
+}
+
+class Message {
+  +id: string
+  +conversationId: string
+  +senderId: string
+  +content: string
+  +attachments: Attachment[]
+  +timestamp: datetime
+  +isRead: boolean
+}
+
+class Attachment {
+  +id: string
+  +name: string
+  +url: string
+  +size: string
+}
+
+class User {
+  +id: string
+  +role: string
+}
+
+MessageController --> Conversation
+MessageController --> Message
+MessageController --> Attachment
+PresenceController --> User : tracks status
+Conversation "1" -- "0..*" Message
+Message "0..*" -- "0..*" Attachment
+User "1" -- "0..*" Conversation : participates
+
+@enduml

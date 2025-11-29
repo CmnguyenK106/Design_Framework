@@ -1,0 +1,58 @@
+@startuml
+title Feedback Module
+
+class FeedbackController {
+  +list(filters)
+  +create(payload)
+  +listTutor(tutorId, filters)
+  +markViewed(id, tutorId)
+  +adminList(filters)
+  +adminExport(type, range, format)
+  +adminFlag(id)
+  +adminNote(id, note)
+}
+
+class Feedback {
+  +id: string
+  +sessionId: string
+  +studentId: string
+  +tutorId: string
+  +subject: string
+  +ratings: Rating
+  +goodPoints: string
+  +improvements: string
+  +comment: string
+  +recommend: boolean
+  +anonymous: boolean
+  +status: enum(draft, published)
+  +tutorViewed: boolean
+  +createdAt: datetime
+}
+
+class Rating {
+  +quality: number
+  +knowledge: number
+  +communication: number
+  +helpfulness: number
+  +timeManagement: number
+}
+
+class Session {
+  +id: string
+  +tutorId: string
+  +studentIds: string[]
+}
+
+class User {
+  +id: string
+  +role: string
+}
+
+FeedbackController --> Feedback
+FeedbackController --> Session
+Feedback "1" -- "1" Session
+Feedback "1" -- "1" Rating
+User "1" -- "0..*" Feedback : tutors receive
+User "1" -- "0..*" Feedback : students submit
+
+@enduml

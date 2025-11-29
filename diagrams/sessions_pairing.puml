@@ -1,0 +1,66 @@
+@startuml
+title Sessions & Pairing Module
+
+class SessionController {
+  +listSessions(filters)
+  +getSession(id)
+  +createSession(payload)
+  +updateSession(id, payload)
+  +deleteSession(id)
+  +register(id, studentId)
+  +unregister(id, studentId)
+}
+
+class PairingController {
+  +sendRequest(tutorId, studentId)
+  +listTutorRequests(tutorId)
+  +acceptRequest(id, tutorId)
+  +rejectRequest(id, tutorId)
+  +listPaired(tutorId)
+}
+
+class Session {
+  +id: string
+  +tutorId: string
+  +subject: string
+  +date: date
+  +startTime: string
+  +endTime: string
+  +location: string
+  +type: enum(online, offline)
+  +link: string
+  +maxStudents: number
+  +registered: number
+  +status: enum(scheduled, cancelled, completed)
+  +students: string[]
+}
+
+class PairRequest {
+  +id: string
+  +studentId: string
+  +tutorId: string
+  +status: enum(pending, accepted, rejected)
+  +createdAt: datetime
+}
+
+class Notification {
+  +id: string
+  +recipientId: string
+  +type: string
+  +status: enum(unread, read)
+}
+
+class User {
+  +id: string
+  +role: string
+}
+
+SessionController --> Session
+SessionController --> Notification : emits on create/cancel/register
+PairingController --> PairRequest
+PairingController --> Notification : emits on request/decision
+User "1" -- "0..*" Session : tutor owns
+User "0..*" -- "0..*" Session : registers
+User "1" -- "0..*" PairRequest : requester/receiver
+
+@enduml

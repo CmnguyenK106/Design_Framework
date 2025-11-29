@@ -1,0 +1,57 @@
+@startuml
+title Resources Module
+
+class ResourceController {
+  +listResources()
+  +uploadResource(file, description, category)
+  +deleteResource(id)
+  +downloadResource(id)
+  +tutorProgress()
+  +updateProgress(id, payload)
+  +adminBackups()
+  +createBackup()
+}
+
+class Resource {
+  +id: string
+  +name: string
+  +description: string
+  +category: enum(lecture, exercise, reference)
+  +uploadedBy: string
+  +uploadDate: date
+  +size: string
+  +type: string
+  +url: string
+  +storedName: string
+}
+
+class Progress {
+  +id: string
+  +studentId: string
+  +studentName: string
+  +completed: number
+  +total: number
+  +percentage: number
+  +lastUpdate: date
+}
+
+class Backup {
+  +id: string
+  +filename: string
+  +createdAt: datetime
+  +size: string
+}
+
+class User {
+  +id: string
+  +role: string
+}
+
+ResourceController --> Resource
+ResourceController --> Progress
+ResourceController --> Backup
+User "1" -- "0..*" Resource : uploads
+User "1" -- "0..*" Progress : tracks
+User "1" -- "0..*" Backup : admin only
+
+@enduml

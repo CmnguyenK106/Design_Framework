@@ -1,0 +1,60 @@
+@startuml
+title Reporting Module
+
+class ReportController {
+  +overview()
+  +tutorMetrics()
+  +studentMetrics()
+  +sessionMetrics()
+  +feedbackSummary()
+  +export(type, dateRange, format)
+}
+
+class OverviewReport {
+  +totalSessions: number
+  +totalTutors: number
+  +totalStudents: number
+  +avgRating: number
+  +trendData: object[]
+}
+
+class TutorMetrics {
+  +activeTutors: number
+  +activityRate: number
+  +avgHours: number
+  +recordRate: number
+}
+
+class StudentMetrics {
+  +totalStudents: number
+  +activeRate: number
+  +atRisk: number
+}
+
+class SessionMetrics {
+  +totalHours: number
+  +successRate: number
+  +cancelRate: number
+}
+
+class FeedbackSummary {
+  +avgSatisfaction: number
+  +totalFeedback: number
+  +responseRate: number
+  +ratingDistribution: object
+}
+
+class ExportRequest {
+  +type: enum(overview, tutor, student, session, feedback)
+  +dateRange: string
+  +format: enum(pdf, excel)
+}
+
+ReportController --> OverviewReport
+ReportController --> TutorMetrics
+ReportController --> StudentMetrics
+ReportController --> SessionMetrics
+ReportController --> FeedbackSummary
+ReportController --> ExportRequest
+
+@enduml
