@@ -1,0 +1,35 @@
+@startuml
+title UC04 - Notifications (session reminder, settings, mark read)
+actor User
+participant Frontend
+participant "NotificationController" as Notif
+database "notifications (in-memory)" as NotifDB
+participant "Scheduler/Worker" as Worker
+
+== Settings ==
+User -> Frontend: Toggle channels per type
+Frontend -> Notif: PUT /api/notifications/settings
+Notif --> Frontend: 200
+
+== Emit events ==
+participant "SessionController" as SessionAPI
+SessionAPI -> Notif: create notification (session_created/cancelled/register)
+Notif -> NotifDB: insert (unread)
+
+== Auto reminder ==
+Worker -> NotifDB: scan sessions in 24h/1h
+Worker -> Notif: create reminder notification
+
+== List & filter ==
+User -> Frontend: Open Thông báo
+Frontend -> Notif: GET /api/notifications?type&status
+Notif --> Frontend: notifications grouped
+Frontend -> User: show badges, unread counts (sidebar + bell)
+
+== Mark read ==
+User -> Frontend: Click an item
+Frontend -> Notif: PATCH /api/notifications/:id/read
+Notif -> NotifDB: status=read
+Notif --> Frontend: 200
+Frontend -> User: badge decrements
+@enduml

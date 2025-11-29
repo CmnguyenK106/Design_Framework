@@ -1,0 +1,20 @@
+@startuml
+title UC07 Resources
+actor Tutor
+actor Mentee
+participant FE
+participant ResAPI
+
+Tutor -> FE: select file
+FE -> ResAPI: POST upload
+ResAPI --> FE: 201
+
+Mentee -> FE: open resources
+FE -> ResAPI: GET /resources
+ResAPI --> FE: list
+
+Mentee -> FE: click download
+FE -> ResAPI: GET /resources/:id/download
+ResAPI --> FE: file stream
+FE -> Mentee: save file
+@enduml

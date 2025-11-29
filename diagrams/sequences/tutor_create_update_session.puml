@@ -1,0 +1,32 @@
+@startuml
+title UC03 - Tutor creates/updates session
+actor Tutor
+participant Frontend
+participant "SessionController" as SessionAPI
+database "sessions (in-memory)" as Sessions
+participant "NotificationController" as Notif
+
+== Create ==
+Tutor -> Frontend: Open Lịch tư vấn (tutor)
+Tutor -> Frontend: Click "Thiết lập lịch rảnh"\nfill form
+Frontend -> SessionAPI: POST /api/tutor/sessions {date, time, subject, max, location/link, type}
+SessionAPI -> Sessions: validate (past, conflict, >=30m)
+Sessions --> SessionAPI: ok
+SessionAPI -> Sessions: add session
+SessionAPI -> Notif: emit "session_created" to interested students
+SessionAPI --> Frontend: 201 session
+Frontend -> Tutor: Toast success, refresh list
+
+== Update / Cancel ==
+Tutor -> Frontend: Open "Quản lý lớp"
+Frontend -> SessionAPI: PUT /api/tutor/sessions/:id {fields}
+SessionAPI -> Sessions: apply changes
+SessionAPI -> Notif: emit "session_updated" to registered students
+SessionAPI --> Frontend: 200 updated
+Tutor -> Frontend: Click "Xóa lớp học"
+Frontend -> SessionAPI: DELETE /api/tutor/sessions/:id
+SessionAPI -> Sessions: set status=cancelled/remove
+SessionAPI -> Notif: emit "session_cancelled" to registered students
+SessionAPI --> Frontend: 200
+Frontend -> Tutor: Toast success
+@enduml

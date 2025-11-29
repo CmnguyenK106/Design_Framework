@@ -1,0 +1,34 @@
+@startuml
+title UC03 - Student registers a session
+actor Student
+participant Frontend
+participant "SessionController" as SessionAPI
+database "sessions (in-memory)" as Sessions
+participant "NotificationController" as Notif
+
+== Browse sessions ==
+Student -> Frontend: Open Lịch tư vấn (student)
+Frontend -> SessionAPI: GET /api/sessions?status=available&filters
+SessionAPI --> Frontend: sessions list
+Frontend -> Student: Show cards + filter/search
+
+== View details ==
+Student -> Frontend: Click a session card
+Frontend -> SessionAPI: GET /api/sessions/:id
+SessionAPI --> Frontend: session detail (slot info)
+Frontend -> Student: Show modal detail
+
+== Register ==
+Student -> Frontend: Click "Đăng ký lớp học"
+Frontend -> SessionAPI: POST /api/sessions/:id/register
+SessionAPI -> Sessions: check slot, conflict, status
+Sessions --> SessionAPI: ok/err
+SessionAPI -> SessionAPI: increment registered, push student id
+SessionAPI -> Notif: emit "session_registered" to tutor
+SessionAPI --> Frontend: 200 success
+Frontend -> Student: Toast success, update UI (slot--)
+
+== Slot full / conflict ==
+SessionAPI --> Frontend: 400 {reason: full/conflict}
+Frontend -> Student: Show error toast
+@enduml

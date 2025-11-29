@@ -1,0 +1,27 @@
+@startuml
+title UC06 - Feedback
+actor Student
+actor Tutor
+participant FE as Frontend
+participant FB as FeedbackAPI
+database FbDB
+participant Sess as SessionAPI
+participant Notif
+
+Student -> FE: Open Feedback
+FE -> Sess: GET completed sessions
+Sess --> FE: list
+Student -> FE: Choose session + ratings
+FE -> FB: POST /feedback
+FB -> FbDB: save published
+FB -> Notif: feedback_received to Tutor
+FB --> FE: 201
+
+Tutor -> FE: Open tutor feedback page
+FE -> FB: GET /tutor/feedback
+FB --> FE: list + stats
+Tutor -> FE: Mark viewed
+FE -> FB: PATCH /tutor/feedback/:id/mark-viewed
+FB -> FbDB: tutorViewed=true
+FB --> FE: 200
+@enduml

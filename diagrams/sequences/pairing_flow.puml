@@ -1,0 +1,35 @@
+@startuml
+title UC03 Pairing
+actor Student
+participant FE as Frontend
+participant PairAPI
+database PairDB
+participant Notif
+actor Tutor
+
+Student -> FE: Click pair tutor
+FE -> PairAPI: POST /pair-request
+PairAPI -> PairDB: create pending
+PairAPI -> Notif: pairing_request to Tutor
+PairAPI --> FE: 201
+
+Tutor -> FE: Open Pair Requests
+FE -> PairAPI: GET /tutor/pair-requests
+PairAPI --> FE: list
+
+Tutor -> FE: Accept request
+FE -> PairAPI: PUT /tutor/pair-requests/:id/accept
+PairAPI -> PairDB: status=accepted
+PairAPI -> Notif: pairing_accepted to Student
+PairAPI --> FE: 200
+
+FE -> PairAPI: GET /tutor/paired
+PairAPI --> FE: paired list
+FE -> Student: show paired tutor
+
+Tutor -> FE: Reject request
+FE -> PairAPI: PUT /tutor/pair-requests/:id/reject
+PairAPI -> PairDB: status=rejected
+PairAPI -> Notif: pairing_rejected to Student
+PairAPI --> FE: 200
+@enduml

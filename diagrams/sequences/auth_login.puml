@@ -1,0 +1,26 @@
+@startuml
+title UC01 - Login (Mock SSO) Flow
+actor Student as User
+participant Frontend
+participant "AuthController (API)" as Auth
+database "DEMO_USERS (in-memory)" as Users
+
+== Submit credential ==
+User -> Frontend: Enter username/password\nClick "Đăng nhập"
+Frontend -> Auth: POST /api/auth/login {username, password}
+Auth -> Users: validate(username, password)
+Users --> Auth: user or error
+Auth -> Auth: generate JWT (userId, role, email, exp=60m)
+Auth --> Frontend: 200 {token, user}
+Frontend -> Frontend: store token (localStorage)\nsetAuthToken()
+Frontend -> User: Redirect by role\nadmin/tutor/member dashboard
+
+== Error case ==
+User -> Frontend: Wrong credential
+Frontend -> Auth: POST /api/auth/login
+Auth --> Frontend: 401 {error: "Sai MSSV hoặc mật khẩu"}
+Frontend -> User: Show toast/error message
+
+== Session timeout ==
+Frontend -> Frontend: detect exp or 401\nclear token\nredirect /login
+@enduml

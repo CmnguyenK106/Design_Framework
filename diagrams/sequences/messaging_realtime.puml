@@ -1,0 +1,37 @@
+@startuml
+title UC05 - Messaging (send + unread + online)
+actor UserA as Sender
+actor UserB as Receiver
+participant Frontend
+participant "MessageController" as MsgAPI
+database "conversations/messages (in-memory)" as DB
+participant "PresenceController" as Presence
+participant "NotificationController" as Notif
+
+== Presence ==
+Sender -> Presence: POST /presence/online
+Presence --> Sender: 200
+Receiver -> Presence: POST /presence/online
+
+== Send message ==
+Sender -> Frontend: type message, click Send
+Frontend -> MsgAPI: POST /api/messages {conversationId, content}
+MsgAPI -> DB: persist Message (isRead=false)
+MsgAPI -> DB: update Conversation.lastMessage + unreadCount for Receiver
+MsgAPI -> Notif: emit "message_new" to Receiver (in-app badge)
+MsgAPI --> Frontend: 201 message
+Frontend -> Sender: append bubble
+
+== Receiver realtime/poll ==
+Receiver -> MsgAPI: GET /api/conversations (poll)
+MsgAPI --> Receiver: list with unreadCount>0
+Receiver -> Frontend: sees badge in sidebar + global bell
+Receiver -> MsgAPI: GET /api/conversations/:id/messages
+MsgAPI --> Receiver: messages (includes new)
+
+== Mark read ==
+Receiver -> MsgAPI: PATCH /api/messages/mark-read (implicit on fetch)
+MsgAPI -> DB: set isRead=true, decrement unreadCount
+MsgAPI --> Receiver: 200
+Frontend -> Receiver: badge clears; global bell count updates
+@enduml
