@@ -36,8 +36,10 @@ function updateAvatar(req, res) {
   if (!user) {
     return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'User not found' } });
   }
-
-  user.avatar = req.body.avatar || user.avatar;
+  if (!req.file) {
+    return res.status(400).json({ success: false, error: { code: 'NO_FILE', message: 'Chưa chọn ảnh' } });
+  }
+  user.avatar = `/uploads/avatars/${req.file.filename}`;
   return res.json({ success: true, data: { avatar: user.avatar } });
 }
 

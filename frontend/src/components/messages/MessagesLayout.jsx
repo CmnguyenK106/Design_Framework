@@ -368,6 +368,7 @@ export default function MessagesLayout() {
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {messages.map((m) => {
             const isMe = m.senderId === user?.id;
+            const sender = current?.participantsDetail?.find((p) => p.id === m.senderId);
             return (
               <div key={m.id} className={classNames('flex', isMe ? 'justify-end' : 'justify-start')}>
                 <div
@@ -376,6 +377,17 @@ export default function MessagesLayout() {
                     isMe ? 'bg-primary text-white' : 'bg-gray-100 text-gray-900',
                   )}
                 >
+                  <div className={classNames('mb-1 flex items-center gap-2 text-xs', isMe ? 'text-white/80' : 'text-gray-700')}>
+                    {sender?.avatar ? (
+                      <img src={sender.avatar} alt={sender.name} className="h-6 w-6 rounded-full object-cover border" />
+                    ) : (
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-[10px] font-semibold uppercase text-gray-800">
+                        {sender?.name?.slice(0, 2) || 'U'}
+                      </div>
+                    )}
+                    <span>{sender?.name || 'Người gửi'}</span>
+                    {sender?.role && <span className="rounded-full bg-white/20 px-2 py-[2px] text-[10px] uppercase">{sender.role}</span>}
+                  </div>
                   <div>{m.content}</div>
                   {m.attachments?.map((a) => (
                     <button
@@ -390,6 +402,22 @@ export default function MessagesLayout() {
                   <div className={classNames('mt-1 text-[11px]', isMe ? 'text-white/80' : 'text-gray-500')}>
                     {new Date(m.timestamp).toLocaleString()}
                   </div>
+                  {isMe && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await api.delete(`/messages/${m.id}`);
+                          setMessages((prev) => prev.filter((x) => x.id !== m.id));
+                        } catch (err) {
+                          setStatus(err.message);
+                        }
+                      }}
+                      className={classNames('mt-1 text-[10px]', isMe ? 'text-white/80' : 'text-gray-500')}
+                    >
+                      Xóa
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -435,11 +463,50 @@ export default function MessagesLayout() {
           <div className="mt-3 space-y-2 text-sm text-gray-700">
             {current.participantsDetail?.map((p) => (
               <div key={p.id} className="rounded-lg border border-gray-100 px-3 py-2">
-                <div className="font-semibold text-gray-900">{p.name}</div>
-                <div className="text-xs text-gray-600 uppercase">{p.role}</div>
-                <div className="text-xs text-gray-600">{p.email}</div>
+                <div className="flex items-center gap-2">
+                  {p.avatar ? (
+                    <img src={p.avatar} alt={p.name} className="h-8 w-8 rounded-full object-cover border" />
+                  ) : (
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold uppercase text-primary">
+                      {p.name?.slice(0, 2)}
+                    </div>
+                  )}
+                  <div>
+                    <div className="font-semibold text-gray-900">{p.name}</div>
+                    <div className="text-[11px] text-gray-600 uppercase">{p.role}</div>
+                    <div className="text-[11px] text-gray-600">{p.email}</div>
+                  </div>
+                </div>
               </div>
             ))}
+            {messages.some((m) => m.attachments?.length) && (
+              <div className="rounded-lg border border-gray-100 px-3 py-2">
+                <div className="mb-2 text-sm font-semibold text-gray-900">File đã gửi</div>
+                <div className="space-y-1 text-xs text-primary">
+                  {messages.flatMap((m) => m.attachments || []).map((a) => (
+                    <button key={a.id} type="button" className="block underline" onClick={() => downloadAttachment(a)}>
+                      {a.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await api.delete(`/messages/conversations/${current.id}`);
+                  setSelectedId('');
+                  loadConversations();
+                  setMessages([]);
+                } catch (err) {
+                  setStatus(err.message);
+                }
+              }}
+              className="w-full rounded-md border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"
+            >
+              Xóa hội thoại/nhóm
+            </button>
           </div>
         ) : (
           <p className="mt-3 text-sm text-gray-500">Chọn hội thoại để xem chi tiết.</p>

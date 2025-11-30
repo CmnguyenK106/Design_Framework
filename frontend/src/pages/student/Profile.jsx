@@ -4,11 +4,16 @@ import api from '../../services/api';
 
 export default function StudentProfile() {
   const [status, setStatus] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [avatarFile, setAvatarFile] = useState(null);
   const { register, handleSubmit, reset, watch } = useForm();
 
   useEffect(() => {
     api.get('/users/profile')
-      .then((res) => reset(res.data.data))
+      .then((res) => {
+        reset(res.data.data);
+        setAvatarUrl(res.data.data.avatar);
+      })
       .catch(() => reset({}));
   }, [reset]);
 
@@ -17,6 +22,20 @@ export default function StudentProfile() {
     try {
       await api.put('/users/profile', values);
       setStatus('Lưu thay đổi thành công');
+    } catch (err) {
+      setStatus(err.message);
+    }
+  };
+
+  const uploadAvatar = async () => {
+    if (!avatarFile) return;
+    try {
+      const form = new FormData();
+      form.append('avatar', avatarFile);
+      const res = await api.patch('/users/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setAvatarUrl(res.data.data.avatar);
+      setStatus('Đã cập nhật ảnh đại diện');
+      setAvatarFile(null);
     } catch (err) {
       setStatus(err.message);
     }
@@ -34,6 +53,22 @@ export default function StudentProfile() {
       {status && <div className="rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{status}</div>}
 
       <form className="space-y-4 rounded-xl bg-white p-5 shadow-sm" onSubmit={handleSubmit(onSubmit)}>
+        <div className="flex items-center gap-4">
+          <img src={avatarUrl || '/avatars/default.png'} alt="avatar" className="h-16 w-16 rounded-full object-cover border" />
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">Ảnh đại diện</label>
+            <input type="file" accept="image/*" onChange={(e) => setAvatarFile(e.target.files?.[0] || null)} />
+            <button
+              type="button"
+              onClick={uploadAvatar}
+              disabled={!avatarFile}
+              className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-gray-300"
+            >
+              Cập nhật ảnh
+            </button>
+          </div>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Họ và tên</label>
