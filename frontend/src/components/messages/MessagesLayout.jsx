@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Paperclip, Search, Send, Star, BellOff, Info, CircleDot, Upload } from 'lucide-react';
-import api from '../../services/api';
 import classNames from 'classnames';
+import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 export default function MessagesLayout() {
@@ -16,6 +16,10 @@ export default function MessagesLayout() {
   const [file, setFile] = useState(null);
   const [online, setOnline] = useState([]);
   const [newAlert, setNewAlert] = useState('');
+  const [userSearch, setUserSearch] = useState('');
+  const [userResults, setUserResults] = useState([]);
+  const [groupUsers, setGroupUsers] = useState([]);
+  const [groupName, setGroupName] = useState('');
 
   const loadConversations = () => {
     api.get('/messages/conversations')
@@ -85,7 +89,7 @@ export default function MessagesLayout() {
     try {
       await api.patch(`/messages/conversations/${conversationId}/read`);
     } catch (err) {
-      // ignore for now
+      // ignore
     }
     setConversations((prev) =>
       prev.map((c) => (c.id === conversationId ? { ...c, unreadCount: 0 } : c)),
@@ -124,6 +128,80 @@ export default function MessagesLayout() {
     loadConversations();
   };
 
+  const searchUsers = async (q) => {
+    setUserSearch(q);
+    if (!q.trim()) {
+      setUserResults([]);
+      return;
+    }
+    try {
+      const res = await api.get('/messages/users', { params: { q } });
+      setUserResults(res.data.data);
+    } catch (err) {
+      setUserResults([]);
+    }
+  };
+
+  const startConversation = async (userId) => {
+    try {
+      const res = await api.post('/messages/conversations', { participantIds: [userId], type: 'direct' });
+      setUserResults([]);
+      setUserSearch('');
+      loadConversations();
+      setSelectedId(res.data.data.id);
+    } catch (err) {
+      setStatus(err.message);
+    }
+  };
+
+  const toggleGroupUser = (u) => {
+    setGroupUsers((prev) => {
+      if (prev.find((x) => x.id === u.id)) {
+        return prev.filter((x) => x.id !== u.id);
+      }
+      return [...prev, u];
+    });
+  };
+
+  const createGroup = async () => {
+    if (groupUsers.length === 0) {
+      setStatus('Chọn ít nhất 1 thành viên để tạo nhóm');
+      return;
+    }
+    try {
+      const res = await api.post('/messages/conversations', { participantIds: groupUsers.map((u) => u.id), type: 'group', title: groupName || undefined });
+      setGroupUsers([]);
+      setGroupName('');
+      setUserResults([]);
+      setUserSearch('');
+      loadConversations();
+      setSelectedId(res.data.data.id);
+    } catch (err) {
+      setStatus(err.message);
+    }
+  };
+
+  const downloadAttachment = async (a) => {
+    try {
+      const res = await api.get(`/messages/attachments/${a.id}/download`, { responseType: 'blob' });
+      const disposition = res.headers['content-disposition'];
+      let filename = a.name;
+      if (disposition && disposition.includes('filename=')) {
+        filename = disposition.split('filename=')[1].replace(/"/g, '').trim();
+      }
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setStatus(err.message || 'Tải file thất bại');
+    }
+  };
+
   return (
     <div className="grid gap-4 lg:grid-cols-12">
       <aside className="lg:col-span-3 rounded-xl bg-white p-3 shadow-sm border border-gray-100 flex flex-col">
@@ -160,6 +238,9 @@ export default function MessagesLayout() {
         <div className="flex-1 space-y-2 overflow-y-auto">
           {filtered.map((c) => {
             const other = c.participantsDetail?.find((p) => p.id !== user?.id) || c.participantsDetail?.[0];
+            const label = c.type === 'group'
+              ? `Nhóm (${c.participantsDetail?.length || 0})`
+              : (other?.name || 'Hội thoại');
             return (
               <button
                 key={c.id}
@@ -175,7 +256,7 @@ export default function MessagesLayout() {
                 }}
               >
                 <div className="flex items-center justify-between">
-                  <div className="font-semibold text-sm text-gray-900">{other?.name || 'Hội thoại'}</div>
+                  <div className="font-semibold text-sm text-gray-900">{label}</div>
                   <div className="flex items-center gap-2 text-xs text-gray-500">
                     {c.isMarked && <Star size={14} className="text-yellow-500" />}
                     {c.isMuted && <BellOff size={14} className="text-gray-400" />}
@@ -191,6 +272,57 @@ export default function MessagesLayout() {
             );
           })}
           {filtered.length === 0 && <p className="text-sm text-gray-500">Không có hội thoại.</p>}
+        </div>
+        <div className="mt-3 border-t pt-3">
+          <p className="mb-2 text-xs font-semibold text-gray-700">Tìm người để nhắn tin</p>
+          <div className="flex items-center gap-2 rounded-md border px-2 py-1">
+            <Search size={16} className="text-gray-500" />
+            <input
+              value={userSearch}
+              onChange={(e) => searchUsers(e.target.value)}
+              className="w-full border-none text-sm focus:outline-none"
+              placeholder="Nhập tên/username/email"
+            />
+          </div>
+          {userResults.length > 0 && (
+            <div className="mt-2 max-h-40 overflow-y-auto rounded-md border bg-white shadow-sm">
+              {userResults.map((u) => (
+                <button
+                  key={u.id}
+                  type="button"
+                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50"
+                  onClick={() => startConversation(u.id)}
+                >
+                  <span className="font-semibold text-gray-900">{u.name}</span>
+                  <span className="text-xs text-gray-600">{u.role}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="mt-3 rounded-md border bg-gray-50 p-3">
+            <p className="text-xs font-semibold text-gray-700">Tạo nhóm chat</p>
+            <input
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              className="mt-2 w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+              placeholder="Tên nhóm (tùy chọn)"
+            />
+            <div className="mt-2 flex flex-wrap gap-2">
+              {groupUsers.map((u) => (
+                <span key={u.id} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
+                  {u.name}
+                  <button type="button" onClick={() => toggleGroupUser(u)}>×</button>
+                </span>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={createGroup}
+              className="mt-2 w-full rounded-md bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary-hover"
+            >
+              Tạo nhóm
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -229,15 +361,14 @@ export default function MessagesLayout() {
                 >
                   <div>{m.content}</div>
                   {m.attachments?.map((a) => (
-                    <a
+                    <button
                       key={a.id}
+                      type="button"
                       className="mt-1 block text-xs underline"
-                      href={a.url.startsWith('http') ? a.url : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000'}${a.url}`}
-                      target="_blank"
-                      rel="noreferrer"
+                      onClick={() => downloadAttachment(a)}
                     >
                       📎 {a.name}
-                    </a>
+                    </button>
                   ))}
                   <div className={classNames('mt-1 text-[11px]', isMe ? 'text-white/80' : 'text-gray-500')}>
                     {new Date(m.timestamp).toLocaleString()}

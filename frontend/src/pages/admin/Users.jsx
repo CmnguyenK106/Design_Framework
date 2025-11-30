@@ -33,6 +33,18 @@ export default function AdminUsers() {
     }
   };
 
+  const remove = async (id) => {
+    if (!window.confirm('Bạn chắc chắn muốn xóa tài khoản này?')) return;
+    setMessage('');
+    try {
+      await api.delete(`/admin/users/${id}`);
+      fetchUsers();
+      setMessage('Đã xóa tài khoản');
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
   const filtered = users.filter((u) => {
     const text = `${u.name} ${u.username} ${u.email}`.toLowerCase();
     if (search && !text.includes(search.toLowerCase())) return false;
@@ -79,6 +91,7 @@ export default function AdminUsers() {
                   <th className="px-3 py-2">Username</th>
                   <th className="px-3 py-2">Email</th>
                   <th className="px-3 py-2">Vai trò</th>
+                  <th className="px-3 py-2">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -88,6 +101,15 @@ export default function AdminUsers() {
                     <td className="px-3 py-2">{u.username}</td>
                     <td className="px-3 py-2">{u.email}</td>
                     <td className="px-3 py-2 uppercase">{u.role}</td>
+                    <td className="px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => remove(u.id)}
+                        className="rounded-md border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
+                      >
+                        Xóa
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

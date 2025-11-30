@@ -129,6 +129,40 @@ function uploadFile(req, res) {
   });
 }
 
+function downloadAttachment(req, res) {
+  const attachmentId = req.params.id;
+  // Tìm attachment trong các message của user
+  const msg = messages.find(
+    (m) => m.attachments?.some((a) => a.id === attachmentId) && m.conversationId
+      && conversations.some((c) => c.id === m.conversationId && c.participants.includes(req.user.userId)),
+  );
+  if (!msg) {
+    return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Không tìm thấy tệp đính kèm' } });
+  }
+  const attachment = msg.attachments.find((a) => a.id === attachmentId);
+  if (!attachment || !attachment.url) {
+    return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Không tìm thấy tệp đính kèm' } });
+  }
+  const fileName = path.basename(attachment.url);
+  const filePath = path.join(process.cwd(), 'uploads', 'messages', fileName);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'File không tồn tại trên server' } });
+  }
+  return res.download(filePath, attachment.name);
+}
+
+function searchUsers(req, res) {
+  const q = (req.query.q || '').toLowerCase();
+  const result = users
+    .filter((u) => u.id !== req.user.userId && u.status !== 'inactive')
+    .filter((u) => (q ? `${u.name} ${u.username} ${u.email}`.toLowerCase().includes(q) : true))
+    .slice(0, 20)
+    .map((u) => ({
+      id: u.id, name: u.name, username: u.username, role: u.role, email: u.email,
+    }));
+  return res.json({ success: true, data: result });
+}
+
 function markConversationRead(req, res) {
   const convo = conversations.find((c) => c.id === req.params.id && c.participants.includes(req.user.userId));
   if (!convo) {
@@ -149,5 +183,7 @@ module.exports = {
   sendMessage,
   deleteMessage,
   uploadFile,
+  downloadAttachment,
+  searchUsers,
   markConversationRead,
 };

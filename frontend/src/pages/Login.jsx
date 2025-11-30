@@ -70,7 +70,7 @@ export default function LoginPage() {
                 placeholder="Nhập MSSV hoặc tài khoản"
                 {...register('username', { required: 'Vui lòng nhập tài khoản' })}
               />
-              {errors.username && <p className="mt-1 text-sm text-danger">❌ {errors.username.message}</p>}
+              {errors.username && <p className="mt-1 text-sm text-danger">• {errors.username.message}</p>}
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Mật khẩu</label>
@@ -80,7 +80,7 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 {...register('password', { required: 'Vui lòng nhập mật khẩu' })}
               />
-              {errors.password && <p className="mt-1 text-sm text-danger">❌ {errors.password.message}</p>}
+              {errors.password && <p className="mt-1 text-sm text-danger">• {errors.password.message}</p>}
             </div>
             {serverError && <div className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">{serverError}</div>}
             <button
@@ -92,9 +92,21 @@ export default function LoginPage() {
             </button>
           </form>
           <div className="mt-6 text-sm text-gray-600">
-            <a href="#" className="text-primary hover:underline">Quên mật khẩu?</a>
+            <button
+              type="button"
+              className="text-primary hover:underline"
+              onClick={() => alert('Mock SSO demo: dùng admin/admin, tutor/tutor, 2312487/demo. Chưa hỗ trợ reset mật khẩu.')}
+            >
+              Quên mật khẩu?
+            </button>
             <span className="mx-2 text-gray-400">•</span>
-            <a href="#" className="text-primary hover:underline">Chưa có tài khoản? Đăng ký</a>
+            <button
+              type="button"
+              className="text-primary hover:underline"
+              onClick={() => alert('Mock SSO demo: tài khoản demo đã có sẵn. Vui lòng dùng admin/admin, tutor/tutor, 2312487/demo.')}
+            >
+              Chưa có tài khoản? Đăng ký
+            </button>
           </div>
         </div>
       </div>

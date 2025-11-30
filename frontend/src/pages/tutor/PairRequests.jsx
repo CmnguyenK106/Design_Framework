@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, X } from 'lucide-react';
 import api from '../../services/api';
 
 export default function TutorPairRequests() {
   const [requests, setRequests] = useState([]);
   const [status, setStatus] = useState('');
+  const [selected, setSelected] = useState(null);
 
   const load = () => {
     api.get('/tutor/pair-requests')
@@ -21,6 +22,7 @@ export default function TutorPairRequests() {
     try {
       await api.put(`/tutor/pair-requests/${id}`, { action });
       load();
+      setSelected(null);
       setStatus(action === 'accept' ? 'Đã chấp nhận' : 'Đã từ chối');
     } catch (err) {
       setStatus(err.message);
@@ -38,6 +40,7 @@ export default function TutorPairRequests() {
         </div>
       </div>
       {status && <div className="rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{status}</div>}
+
       <div className="grid gap-3 md:grid-cols-2">
         {requests.map((r) => (
           <div key={r.id} className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
@@ -80,6 +83,27 @@ export default function TutorPairRequests() {
           {accepted.length === 0 && <p className="text-sm text-gray-500">Chưa có ghép cặp nào.</p>}
         </ul>
       </div>
+
+      {selected && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-lg">
+            <div className="flex items-center justify-between">
+              <h4 className="text-lg font-semibold text-gray-900">Thông báo</h4>
+              <button type="button" onClick={() => setSelected(null)}><X size={18} /></button>
+            </div>
+            <p className="mt-2 text-sm text-gray-700">{selected}</p>
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white"
+                onClick={() => setSelected(null)}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

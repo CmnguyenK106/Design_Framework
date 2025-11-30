@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { CalendarClock, MapPin, Users, Edit, Trash2, PlusCircle } from 'lucide-react';
+import {
+  CalendarClock, MapPin, Users, Edit, Trash2, PlusCircle, X,
+} from 'lucide-react';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -10,6 +12,7 @@ export default function TutorSessions() {
   const [status, setStatus] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [editing, setEditing] = useState(null);
+  const [showForm, setShowForm] = useState(false);
   const {
     register, handleSubmit, reset, setValue,
   } = useForm({
@@ -35,22 +38,19 @@ export default function TutorSessions() {
     fetchSessions();
   }, [user]);
 
-  const onSubmit = async (values) => {
-    setStatus('');
-    try {
-      if (editing) {
-        await api.put(`/sessions/${editing.id}`, { ...values, maxStudents: Number(values.maxStudents) });
-        setStatus('Cập nhật lịch thành công');
-      } else {
-        await api.post('/sessions', { ...values, maxStudents: Number(values.maxStudents) });
-        setStatus('Tạo lịch thành công');
-      }
-      reset();
-      setEditing(null);
-      fetchSessions();
-    } catch (err) {
-      setStatus(err.message);
-    }
+  const openCreate = () => {
+    setEditing(null);
+    reset({
+      subject: '',
+      date: new Date().toISOString().slice(0, 10),
+      startTime: '14:00',
+      endTime: '16:00',
+      location: 'H1-101',
+      type: 'offline',
+      link: '',
+      maxStudents: 10,
+    });
+    setShowForm(true);
   };
 
   const handleEdit = (s) => {
@@ -63,6 +63,7 @@ export default function TutorSessions() {
     setValue('type', s.type);
     setValue('link', s.link || '');
     setValue('maxStudents', s.maxStudents);
+    setShowForm(true);
   };
 
   const handleDelete = async (id) => {
@@ -71,6 +72,25 @@ export default function TutorSessions() {
       await api.delete(`/sessions/${id}`);
       fetchSessions();
       if (editing && editing.id === id) setEditing(null);
+    } catch (err) {
+      setStatus(err.message);
+    }
+  };
+
+  const onSubmit = async (values) => {
+    setStatus('');
+    try {
+      if (editing) {
+        await api.put(`/sessions/${editing.id}`, { ...values, maxStudents: Number(values.maxStudents) });
+        setStatus('Cập nhật lịch thành công');
+      } else {
+        await api.post('/sessions', { ...values, maxStudents: Number(values.maxStudents) });
+        setStatus('Tạo lịch thành công');
+      }
+      reset();
+      setEditing(null);
+      setShowForm(false);
+      fetchSessions();
     } catch (err) {
       setStatus(err.message);
     }
@@ -97,19 +117,7 @@ export default function TutorSessions() {
           </select>
           <button
             type="button"
-            onClick={() => {
-              setEditing(null);
-              reset({
-                subject: '',
-                date: new Date().toISOString().slice(0, 10),
-                startTime: '14:00',
-                endTime: '16:00',
-                location: 'H1-101',
-                type: 'offline',
-                link: '',
-                maxStudents: 10,
-              });
-            }}
+            onClick={openCreate}
             className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary-hover"
           >
             <PlusCircle size={16} /> Thiết lập lịch rảnh
@@ -154,71 +162,78 @@ export default function TutorSessions() {
         {filtered.length === 0 && <p className="text-sm text-gray-500">Chưa có phiên nào.</p>}
       </div>
 
-      <div className="rounded-xl bg-white p-4 shadow-sm">
-        <h3 className="mb-3 text-lg font-semibold text-gray-900">{editing ? 'Chỉnh sửa thông tin lịch' : 'Thiết lập lịch rảnh mới'}</h3>
-        <form className="space-y-3" onSubmit={handleSubmit(onSubmit)}>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <label className="text-sm font-medium text-gray-700">Ngày</label>
-              <input type="date" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('date', { required: true })} />
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-lg">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">{editing ? 'Chỉnh sửa thông tin lịch' : 'Thiết lập lịch rảnh mới'}</h3>
+              <button type="button" onClick={() => { setShowForm(false); setEditing(null); }}><X size={20} /></button>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-sm font-medium text-gray-700">Giờ bắt đầu</label>
-                <input type="time" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('startTime', { required: true })} />
+            <form className="mt-4 space-y-3" onSubmit={handleSubmit(onSubmit)}>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Ngày</label>
+                  <input type="date" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('date', { required: true })} />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Giờ bắt đầu</label>
+                    <input type="time" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('startTime', { required: true })} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Giờ kết thúc</label>
+                    <input type="time" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('endTime', { required: true })} />
+                  </div>
+                </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Giờ kết thúc</label>
-                <input type="time" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('endTime', { required: true })} />
+                <label className="text-sm font-medium text-gray-700">Môn học / Chủ đề</label>
+                <input className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('subject', { required: true })} placeholder="Ví dụ: Cơ sở dữ liệu" />
               </div>
-            </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Số lượng SV tối đa</label>
+                  <input type="number" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('maxStudents', { required: true, min: 1 })} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Địa điểm</label>
+                  <input className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('location')} placeholder="H1-201 hoặc Online" />
+                </div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Loại</label>
+                  <select className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('type')}>
+                    <option value="offline">Offline</option>
+                    <option value="online">Online</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Link tham gia (nếu online)</label>
+                  <input className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('link')} placeholder="https://meet..." />
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={() => { setShowForm(false); setEditing(null); }} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700">
+                  Hủy
+                </button>
+                {editing && (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(editing.id)}
+                    className="rounded-md border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+                  >
+                    Xóa lớp học
+                  </button>
+                )}
+                <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover">
+                  {editing ? 'Lưu thay đổi' : 'Tạo lịch'}
+                </button>
+              </div>
+            </form>
           </div>
-          <div>
-            <label className="text-sm font-medium text-gray-700">Môn học / Chủ đề</label>
-            <input className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('subject', { required: true })} placeholder="Ví dụ: Cơ sở dữ liệu" />
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <label className="text-sm font-medium text-gray-700">Số lượng SV tối đa</label>
-              <input type="number" className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('maxStudents', { required: true, min: 1 })} />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Địa điểm</label>
-              <input className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('location')} placeholder="H1-201 hoặc Online" />
-            </div>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <label className="text-sm font-medium text-gray-700">Loại</label>
-              <select className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('type')}>
-                <option value="offline">Offline</option>
-                <option value="online">Online</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Link tham gia (nếu online)</label>
-              <input className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" {...register('link')} placeholder="https://meet..." />
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={() => { setEditing(null); reset(); }} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700">
-              Hủy
-            </button>
-            {editing && (
-              <button
-                type="button"
-                onClick={() => handleDelete(editing.id)}
-                className="rounded-md border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
-              >
-                Xóa lớp học
-              </button>
-            )}
-            <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover">
-              {editing ? 'Lưu thay đổi' : 'Tạo lịch'}
-            </button>
-          </div>
-        </form>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

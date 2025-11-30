@@ -13,6 +13,8 @@ const {
   sendMessage,
   deleteMessage,
   uploadFile,
+  downloadAttachment,
+  searchUsers,
   markConversationRead,
 } = require('../controllers/messageController');
 
@@ -33,5 +35,7 @@ router.delete('/conversations/:id', deleteConversation);
 router.post('/', sendMessage);
 router.delete('/:id', deleteMessage);
 router.post('/upload-file', upload.single('file'), uploadFile);
+router.get('/attachments/:id/download', downloadAttachment);
+router.get('/users', searchUsers);
 
 module.exports = router;
