@@ -4,6 +4,14 @@ import classNames from 'classnames';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
+const resolveAvatar = (avatar) => {
+  if (!avatar) return '';
+  if (avatar.startsWith('http')) return avatar;
+  const apiBase = import.meta.env.VITE_API_URL || '';
+  const host = apiBase.replace(/\/api$/, '');
+  return `${host}${avatar}`;
+};
+
 export default function MessagesLayout() {
   const { user } = useAuth();
   const [conversations, setConversations] = useState([]);
@@ -34,6 +42,8 @@ export default function MessagesLayout() {
   // Poll conversations and presence every 3s
   useEffect(() => {
     loadConversations();
+    // Preload danh sách user cho tìm kiếm/nhóm
+    searchUsers('');
     const interval = setInterval(() => {
       loadConversations();
       api.get('/presence/online').then((res) => setOnline(res.data.data)).catch(() => {});
@@ -127,6 +137,20 @@ export default function MessagesLayout() {
     if (!current) return;
     await api.patch(`/messages/conversations/${current.id}/mute`);
     loadConversations();
+  };
+
+  const removeMember = async (userId) => {
+    if (!current || current.type !== 'group') return;
+    try {
+      await api.patch(`/messages/conversations/${current.id}/remove`, { userId });
+      if (userId === user?.id) {
+        setSelectedId('');
+        setMessages([]);
+      }
+      loadConversations();
+    } catch (err) {
+      setStatus(err.message);
+    }
   };
 
   const searchUsers = async (q) => {
@@ -237,8 +261,8 @@ export default function MessagesLayout() {
           {filtered.map((c) => {
             const other = c.participantsDetail?.find((p) => p.id !== user?.id) || c.participantsDetail?.[0];
             const label = c.type === 'group'
-              ? (c.title || `Nhóm (${c.participantsDetail?.length || 0})`)
-              : (other?.name || 'Hội thoại');
+              ? (c.title || `Group (${c.participantsDetail?.length || 0})`)
+              : (other?.name || 'Conversation');
             return (
               <button
                 key={c.id}
@@ -276,53 +300,47 @@ export default function MessagesLayout() {
           <div className="flex items-center gap-2 rounded-md border px-2 py-1">
             <Search size={16} className="text-gray-500" />
             <input
-              value={userSearch}
-              onChange={(e) => searchUsers(e.target.value)}
-              className="w-full border-none text-sm focus:outline-none"
-              placeholder="Nhập tên/username/email"
-            />
-          </div>
-          {userResults.length > 0 && (
-            <div className="mt-2 max-h-40 overflow-y-auto rounded-md border bg-white shadow-sm">
-              {userResults.map((u) => (
-                <div key={u.id} className="flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-50">
-                  <div className="space-y-1">
-                    <button
-                      type="button"
-                      className="font-semibold text-gray-900"
-                      onClick={() => startConversation(u.id)}
-                    >
-                      {u.name}
-                    </button>
-                    <div className="text-xs text-gray-600">{u.email}</div>
-                  </div>
-                  <button
-                    type="button"
-                    className="rounded-md border px-2 py-1 text-xs text-primary"
-                    onClick={() => toggleGroupUser(u)}
-                  >
-                    {groupUsers.find((x) => x.id === u.id) ? 'Bỏ chọn' : 'Chọn nhóm'}
-                  </button>
+            value={userSearch}
+            onChange={(e) => searchUsers(e.target.value)}
+            className="w-full border-none text-sm focus:outline-none"
+            placeholder="Nhập tên/username/email"
+          />
+        </div>
+        {userResults.length > 0 && (
+          <div className="mt-2 max-h-40 overflow-y-auto rounded-md border bg-white shadow-sm">
+            {userResults.map((u) => (
+              <div key={u.id} className="flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-50">
+                <div className="space-y-1">
+                  <div className="font-semibold text-gray-900">{u.name}</div>
+                  <div className="text-xs text-gray-600">{u.email}</div>
                 </div>
-              ))}
-            </div>
-          )}
-          <div className="mt-3 rounded-md border bg-gray-50 p-3">
-            <p className="text-xs font-semibold text-gray-700">Tạo nhóm chat</p>
-            <input
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              className="mt-2 w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
-              placeholder="Tên nhóm (tùy chọn)"
-            />
-            <div className="mt-2 flex flex-wrap gap-2">
-              {groupUsers.map((u) => (
-                <span key={u.id} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
-                  {u.name}
-                  <button type="button" onClick={() => toggleGroupUser(u)}>×</button>
-                </span>
-              ))}
-            </div>
+                <button
+                  type="button"
+                  className="rounded-md border px-2 py-1 text-xs font-semibold text-primary"
+                  onClick={() => startConversation(u.id)}
+                >
+                  Nhắn riêng
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+            <div className="mt-3 rounded-md border bg-gray-50 p-3">
+              <p className="text-xs font-semibold text-gray-700">Tạo nhóm chat</p>
+              <input
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                className="mt-2 w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+                placeholder="Tên nhóm (tùy chọn)"
+              />
+              <div className="mt-2 flex flex-wrap gap-2">
+                {groupUsers.map((u) => (
+                  <span key={u.id} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
+                    {u.name}
+                    <button type="button" onClick={() => setGroupUsers((prev) => prev.filter((x) => x.id !== u.id))}>×</button>
+                  </span>
+                ))}
+              </div>
             <div className="mt-2 flex gap-2">
               <button
                 type="button"
@@ -378,13 +396,9 @@ export default function MessagesLayout() {
                   )}
                 >
                   <div className={classNames('mb-1 flex items-center gap-2 text-xs', isMe ? 'text-white/80' : 'text-gray-700')}>
-                    {sender?.avatar ? (
-                      <img src={sender.avatar} alt={sender.name} className="h-6 w-6 rounded-full object-cover border" />
-                    ) : (
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-[10px] font-semibold uppercase text-gray-800">
-                        {sender?.name?.slice(0, 2) || 'U'}
-                      </div>
-                    )}
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-[10px] font-semibold uppercase text-gray-800">
+                      {sender?.name?.slice(0, 2) || 'U'}
+                    </div>
                     <span>{sender?.name || 'Người gửi'}</span>
                     {sender?.role && <span className="rounded-full bg-white/20 px-2 py-[2px] text-[10px] uppercase">{sender.role}</span>}
                   </div>
@@ -463,19 +477,26 @@ export default function MessagesLayout() {
           <div className="mt-3 space-y-2 text-sm text-gray-700">
             {current.participantsDetail?.map((p) => (
               <div key={p.id} className="rounded-lg border border-gray-100 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  {p.avatar ? (
-                    <img src={p.avatar} alt={p.name} className="h-8 w-8 rounded-full object-cover border" />
-                  ) : (
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold uppercase text-primary">
                       {p.name?.slice(0, 2)}
                     </div>
-                  )}
-                  <div>
-                    <div className="font-semibold text-gray-900">{p.name}</div>
-                    <div className="text-[11px] text-gray-600 uppercase">{p.role}</div>
-                    <div className="text-[11px] text-gray-600">{p.email}</div>
+                    <div>
+                      <div className="font-semibold text-gray-900">{p.name}</div>
+                      <div className="text-[11px] text-gray-600 uppercase">{p.role}</div>
+                      <div className="text-[11px] text-gray-600">{p.email}</div>
+                    </div>
                   </div>
+                  {current.type === 'group' && p.id !== user?.id && (
+                    <button
+                      type="button"
+                      onClick={() => removeMember(p.id)}
+                      className="rounded-md border border-red-200 px-2 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-50"
+                    >
+                      Xóa
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

@@ -1,6 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import api from '../../services/api';
+
+const resolveAvatar = (avatar) => {
+  if (!avatar) return '';
+  if (avatar.startsWith('http')) return avatar;
+  const apiBase = import.meta.env.VITE_API_URL || '';
+  const host = apiBase.replace(/\/api$/, '');
+  return `${host}${avatar}`;
+};
 
 export default function StudentProfile() {
   const [status, setStatus] = useState('');
@@ -8,11 +16,17 @@ export default function StudentProfile() {
   const [avatarFile, setAvatarFile] = useState(null);
   const { register, handleSubmit, reset, watch } = useForm();
 
+  const name = watch('name');
+  const initials = useMemo(
+    () => (name ? name.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase() : 'U'),
+    [name],
+  );
+
   useEffect(() => {
     api.get('/users/profile')
       .then((res) => {
         reset(res.data.data);
-        setAvatarUrl(res.data.data.avatar);
+        setAvatarUrl(res.data.data.avatar ? resolveAvatar(res.data.data.avatar) : '');
       })
       .catch(() => reset({}));
   }, [reset]);
@@ -33,7 +47,7 @@ export default function StudentProfile() {
       const form = new FormData();
       form.append('avatar', avatarFile);
       const res = await api.patch('/users/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } });
-      setAvatarUrl(res.data.data.avatar);
+      setAvatarUrl(res.data.data.avatar ? resolveAvatar(res.data.data.avatar) : '');
       setStatus('Đã cập nhật ảnh đại diện');
       setAvatarFile(null);
     } catch (err) {
@@ -54,7 +68,13 @@ export default function StudentProfile() {
 
       <form className="space-y-4 rounded-xl bg-white p-5 shadow-sm" onSubmit={handleSubmit(onSubmit)}>
         <div className="flex items-center gap-4">
-          <img src={avatarUrl || '/avatars/default.png'} alt="avatar" className="h-16 w-16 rounded-full object-cover border" />
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="avatar" className="h-16 w-16 rounded-full object-cover border" />
+          ) : (
+            <div className="flex h-16 w-16 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-lg font-semibold uppercase text-gray-700">
+              {initials}
+            </div>
+          )}
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">Ảnh đại diện</label>
             <input type="file" accept="image/*" onChange={(e) => setAvatarFile(e.target.files?.[0] || null)} />
@@ -78,14 +98,20 @@ export default function StudentProfile() {
             <label className="mb-1 block text-sm font-medium text-gray-700">MSSV</label>
             <input className="w-full rounded-md border border-gray-200 bg-gray-100 px-3 py-2" {...register('mssv')} readOnly />
           </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
-            <input type="email" className="w-full rounded-md border border-gray-300 px-3 py-2" {...register('email')} />
+            <input className="w-full rounded-md border border-gray-300 px-3 py-2" {...register('email')} />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Số điện thoại</label>
             <input className="w-full rounded-md border border-gray-300 px-3 py-2" {...register('phone')} />
           </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Khoa/Bộ môn</label>
             <input className="w-full rounded-md border border-gray-300 px-3 py-2" {...register('khoa')} />
@@ -97,29 +123,33 @@ export default function StudentProfile() {
         </div>
 
         <div>
-          <p className="text-sm font-semibold text-gray-800">Tùy chọn tài khoản</p>
-          <div className="mt-2 grid gap-3 md:grid-cols-2">
-            {[
-              { key: 'emailNotif', label: 'Nhận thông báo qua email' },
-              { key: 'appNotif', label: 'Nhận thông báo qua app' },
-              { key: 'publicProfile', label: 'Hiển thị profile công khai' },
-              { key: 'allowContact', label: 'Cho phép người khác liên hệ' },
-            ].map((item) => (
-              <label key={item.key} className="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" {...register(`settings.${item.key}`)} defaultChecked={settings[item.key]} />
-                {item.label}
-              </label>
-            ))}
-          </div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Kỹ năng</label>
+          <input className="w-full rounded-md border border-gray-300 px-3 py-2" placeholder="Nhập kỹ năng, phân tách bởi dấu phẩy" {...register('skillsText')} />
+          <p className="text-xs text-gray-500 mt-1">Ví dụ: ReactJS, NodeJS, Python</p>
         </div>
 
-        <div className="flex items-center justify-end gap-3">
-          <button type="button" onClick={() => reset()} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700">
-            Hủy thay đổi
-          </button>
-          <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover">
-            Lưu thay đổi
-          </button>
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" className="h-4 w-4" {...register('settings.emailNotif')} defaultChecked={settings.emailNotif} />
+            Nhận thông báo qua email
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" className="h-4 w-4" {...register('settings.appNotif')} defaultChecked={settings.appNotif} />
+            Nhận thông báo qua app
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" className="h-4 w-4" {...register('settings.publicProfile')} defaultChecked={settings.publicProfile} />
+            Hiển thị profile công khai
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" className="h-4 w-4" {...register('settings.allowContact')} defaultChecked={settings.allowContact} />
+            Cho phép người khác liên hệ
+          </label>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 pt-2">
+          <button type="button" onClick={() => window.location.reload()} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Làm mới</button>
+          <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover">Lưu thay đổi</button>
         </div>
       </form>
     </div>

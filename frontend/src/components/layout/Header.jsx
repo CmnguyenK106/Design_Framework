@@ -1,13 +1,27 @@
+import { useEffect, useMemo, useState } from 'react';
 import { LogOut, Bell } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+
+// Normalize avatar url to absolute for server-served files
+const resolveAvatar = (avatar) => {
+  if (!avatar) return '';
+  if (avatar.startsWith('http')) return avatar;
+  const apiBase = import.meta.env.VITE_API_URL || '';
+  const host = apiBase.replace(/\/api$/, '');
+  return `${host}${avatar}`;
+};
 
 export default function Header() {
   const { user, logout } = useAuth();
   const [unread, setUnread] = useState(0);
   const navigate = useNavigate();
+
+  const initials = useMemo(
+    () => (user?.name ? user.name.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase() : 'U'),
+    [user],
+  );
 
   useEffect(() => {
     let timer;
@@ -20,9 +34,7 @@ export default function Header() {
       load();
       timer = setInterval(load, 5000);
     }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
+    return () => timer && clearInterval(timer);
   }, [user]);
 
   const goNotifications = () => {
@@ -38,9 +50,10 @@ export default function Header() {
         <img src="/logo-hcmut-icon.png" alt="HCMUT Logo" className="h-10 w-10 object-contain" />
         <div>
           <p className="text-sm font-semibold text-primary">Tutor Support System</p>
-          <p className="text-xs text-gray-600">HCMUT · Mock SSO</p>
+          <p className="text-xs text-gray-600">HCMUT • Mock SSO</p>
         </div>
       </div>
+
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -55,10 +68,17 @@ export default function Header() {
             </span>
           )}
         </button>
-        <div className="text-right">
-          <p className="text-sm font-semibold text-gray-800">{user?.name}</p>
-          <p className="text-xs text-gray-600 uppercase">{user?.role}</p>
+
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-100 text-xs font-semibold uppercase text-gray-700">
+            {initials}
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-semibold text-gray-800">{user?.name}</p>
+            <p className="text-xs text-gray-600 uppercase">{user?.role}</p>
+          </div>
         </div>
+
         <button
           type="button"
           onClick={logout}

@@ -16,6 +16,7 @@ const {
   downloadAttachment,
   searchUsers,
   markConversationRead,
+  removeParticipant,
 } = require('../controllers/messageController');
 
 const router = express.Router();
@@ -37,5 +38,6 @@ router.delete('/:id', deleteMessage);
 router.post('/upload-file', upload.single('file'), uploadFile);
 router.get('/attachments/:id/download', downloadAttachment);
 router.get('/users', searchUsers);
+router.patch('/conversations/:id/remove', removeParticipant);
 
 module.exports = router;

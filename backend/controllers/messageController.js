@@ -13,7 +13,9 @@ function listConversations(req, res) {
       unreadCount: c.unread?.[userId] || 0,
       participantsDetail: c.participants.map((id) => {
         const u = users.find((x) => x.id === id);
-        return { id: u?.id, name: u?.name, role: u?.role, email: u?.email };
+        return {
+          id: u?.id, name: u?.name, role: u?.role, email: u?.email, avatar: u?.avatar,
+        };
       }),
     }));
   return res.json({ success: true, data });
@@ -154,12 +156,22 @@ function downloadAttachment(req, res) {
 
 function searchUsers(req, res) {
   const q = (req.query.q || '').toLowerCase();
-  const result = users
-    .filter((u) => u.id !== req.user.userId && u.status !== 'inactive')
-    .filter((u) => (q ? `${u.name} ${u.username} ${u.email}`.toLowerCase().includes(q) : true))
-    .slice(0, 20)
+  const base = users
+    .filter((u) => u.id !== req.user.userId)
+    .filter((u) => (u.status ? u.status !== 'inactive' : true));
+
+  let result = base
+    .filter((u) => (q ? `${u.name} ${u.username} ${u.email}`.toLowerCase().includes(q) : true));
+
+  // Nếu không tìm thấy khi có filter, trả về gợi ý chung
+  if (result.length === 0) {
+    result = base;
+  }
+
+  result = result
+    .slice(0, 50)
     .map((u) => ({
-      id: u.id, name: u.name, username: u.username, role: u.role, email: u.email,
+      id: u.id, name: u.name, username: u.username, role: u.role, email: u.email, avatar: u.avatar,
     }));
   return res.json({ success: true, data: result });
 }
@@ -174,6 +186,28 @@ function markConversationRead(req, res) {
   return res.json({ success: true, data: convo });
 }
 
+function removeParticipant(req, res) {
+  const convo = conversations.find((c) => c.id === req.params.id && c.participants.includes(req.user.userId));
+  if (!convo) {
+    return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Không tìm thấy hội thoại' } });
+  }
+  if (convo.type !== 'group') {
+    return res.status(400).json({ success: false, error: { code: 'INVALID', message: 'Chỉ nhóm mới chỉnh sửa thành viên' } });
+  }
+  const { userId } = req.body || {};
+  if (!userId) {
+    return res.status(400).json({ success: false, error: { code: 'INVALID_INPUT', message: 'Thiếu userId' } });
+  }
+  convo.participants = convo.participants.filter((id) => id !== userId);
+  if (convo.participants.length < 2) {
+    // auto delete conversation nếu dưới 2 người
+    const idx = conversations.findIndex((c) => c.id === convo.id);
+    if (idx !== -1) conversations.splice(idx, 1);
+    return res.json({ success: true, data: { message: 'Đã xóa hội thoại' } });
+  }
+  return res.json({ success: true, data: convo });
+}
+
 module.exports = {
   listConversations,
   getMessages,
@@ -185,6 +219,7 @@ module.exports = {
   deleteMessage,
   uploadFile,
   downloadAttachment,
+  removeParticipant,
   searchUsers,
   markConversationRead,
 };
