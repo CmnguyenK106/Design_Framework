@@ -20,6 +20,7 @@ export default function MessagesLayout() {
   const [userResults, setUserResults] = useState([]);
   const [groupUsers, setGroupUsers] = useState([]);
   const [groupName, setGroupName] = useState('');
+  const [showGroupModal, setShowGroupModal] = useState(false);
 
   const loadConversations = () => {
     api.get('/messages/conversations')
@@ -130,10 +131,6 @@ export default function MessagesLayout() {
 
   const searchUsers = async (q) => {
     setUserSearch(q);
-    if (!q.trim()) {
-      setUserResults([]);
-      return;
-    }
     try {
       const res = await api.get('/messages/users', { params: { q } });
       setUserResults(res.data.data);
@@ -174,6 +171,7 @@ export default function MessagesLayout() {
       setGroupName('');
       setUserResults([]);
       setUserSearch('');
+      setShowGroupModal(false);
       loadConversations();
       setSelectedId(res.data.data.id);
     } catch (err) {
@@ -239,7 +237,7 @@ export default function MessagesLayout() {
           {filtered.map((c) => {
             const other = c.participantsDetail?.find((p) => p.id !== user?.id) || c.participantsDetail?.[0];
             const label = c.type === 'group'
-              ? `Nhóm (${c.participantsDetail?.length || 0})`
+              ? (c.title || `Nhóm (${c.participantsDetail?.length || 0})`)
               : (other?.name || 'Hội thoại');
             return (
               <button
@@ -287,15 +285,25 @@ export default function MessagesLayout() {
           {userResults.length > 0 && (
             <div className="mt-2 max-h-40 overflow-y-auto rounded-md border bg-white shadow-sm">
               {userResults.map((u) => (
-                <button
-                  key={u.id}
-                  type="button"
-                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50"
-                  onClick={() => startConversation(u.id)}
-                >
-                  <span className="font-semibold text-gray-900">{u.name}</span>
-                  <span className="text-xs text-gray-600">{u.role}</span>
-                </button>
+                <div key={u.id} className="flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-50">
+                  <div className="space-y-1">
+                    <button
+                      type="button"
+                      className="font-semibold text-gray-900"
+                      onClick={() => startConversation(u.id)}
+                    >
+                      {u.name}
+                    </button>
+                    <div className="text-xs text-gray-600">{u.email}</div>
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-md border px-2 py-1 text-xs text-primary"
+                    onClick={() => toggleGroupUser(u)}
+                  >
+                    {groupUsers.find((x) => x.id === u.id) ? 'Bỏ chọn' : 'Chọn nhóm'}
+                  </button>
+                </div>
               ))}
             </div>
           )}
@@ -315,13 +323,22 @@ export default function MessagesLayout() {
                 </span>
               ))}
             </div>
-            <button
-              type="button"
-              onClick={createGroup}
-              className="mt-2 w-full rounded-md bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary-hover"
-            >
-              Tạo nhóm
-            </button>
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                className="w-1/2 rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                onClick={() => { setShowGroupModal(true); searchUsers(userSearch); }}
+              >
+                Chọn thành viên
+              </button>
+              <button
+                type="button"
+                onClick={createGroup}
+                className="w-1/2 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary-hover"
+              >
+                Tạo nhóm
+              </button>
+            </div>
           </div>
         </div>
       </aside>
@@ -428,6 +445,60 @@ export default function MessagesLayout() {
           <p className="mt-3 text-sm text-gray-500">Chọn hội thoại để xem chi tiết.</p>
         )}
       </aside>
+
+      {showGroupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-lg">
+            <div className="flex items-center justify-between">
+              <h4 className="text-lg font-semibold text-gray-900">Chọn thành viên nhóm</h4>
+              <button type="button" onClick={() => setShowGroupModal(false)}>×</button>
+            </div>
+            <div className="mt-3 flex items-center gap-2 rounded-md border px-2 py-1">
+              <Search size={16} className="text-gray-500" />
+              <input
+                value={userSearch}
+                onChange={(e) => searchUsers(e.target.value)}
+                className="w-full border-none text-sm focus:outline-none"
+                placeholder="Nhập tên/username/email"
+              />
+            </div>
+            <div className="mt-3 max-h-80 overflow-y-auto rounded-md border bg-white">
+              {userResults.map((u) => {
+                const checked = !!groupUsers.find((x) => x.id === u.id);
+                return (
+                  <label key={u.id} className="flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-50">
+                    <div>
+                      <div className="font-semibold text-gray-900">{u.name}</div>
+                      <div className="text-xs text-gray-600">{u.email}</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleGroupUser(u)}
+                      className="h-4 w-4"
+                    />
+                  </label>
+                );
+              })}
+              {userResults.length === 0 && <p className="p-3 text-sm text-gray-500">Không tìm thấy người dùng.</p>}
+            </div>
+            <div className="mt-4 flex items-center justify-between">
+              <div className="flex flex-wrap gap-2">
+                {groupUsers.map((u) => (
+                  <span key={u.id} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
+                    {u.name}
+                    <button type="button" onClick={() => toggleGroupUser(u)}>×</button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button type="button" className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700" onClick={() => setShowGroupModal(false)}>Đóng</button>
+                <button type="button" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white" onClick={createGroup}>Tạo nhóm</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

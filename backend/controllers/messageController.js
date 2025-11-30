@@ -29,7 +29,7 @@ function getMessages(req, res) {
 }
 
 function createConversation(req, res) {
-  const { participantIds = [], type = 'direct' } = req.body || {};
+  const { participantIds = [], type = 'direct', title } = req.body || {};
   const unique = Array.from(new Set([req.user.userId, ...participantIds]));
   if (unique.length < 2) {
     return res.status(400).json({ success: false, error: { code: 'INVALID_INPUT', message: 'Cần ít nhất 2 người tham gia' } });
@@ -38,6 +38,7 @@ function createConversation(req, res) {
     id: `c-${conversations.length + 1}`,
     participants: unique,
     type,
+    title: type === 'group' ? (title || `Nhóm ${conversations.length + 1}`) : undefined,
     lastMessage: null,
     unreadCount: 0,
     isMarked: false,
