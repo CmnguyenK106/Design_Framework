@@ -1,22 +1,45 @@
 const { v4: uuidv4 } = require('uuid');
 const { users } = require('./users');
+const path = require('path');
+const fs = require('fs');
 
-const documents = [];
-const categories = ['lecture', 'exercise', 'reference'];
-for (let i = 0; i < 20; i += 1) {
-  const tutor = users.find((u) => u.role === 'tutor');
-  documents.push({
+const tutor = users.find((u) => u.role === 'tutor');
+const pdfFiles = [
+  'dm2_Ch1a_Propositonal_Logic_Review_Part_I (1).pdf',
+  'dm2_Ch1b_Propositonal_Logic_Review_Part_II.pdf',
+  'dm2_Ch1c_Prediacte_Logic.pdf',
+  'dm2_Ch1c_Prediacte_Logic_Review.pdf',
+  'dm2_Ch1e_Predicate Logic and Introduction to Program Verification.pdf',
+  'dm2_Ch1f_Program Verification.pdf',
+  'dm2_Ch3_ILP.pdf',
+  'Logic and Computation Exercises(solution).pdf',
+  'Logic and Computation Exercises.pdf',
+  'MM3-ILP-new-landscape.pdf',
+  'Slide Advance Logic and Program verification(new).pdf',
+];
+
+const documents = pdfFiles.map((file, idx) => {
+  const filePath = path.join(process.cwd(), 'backend', 'uploads', 'resources', file);
+  let size = '—';
+  try {
+    const stat = fs.statSync(filePath);
+    size = `${(stat.size / 1024 / 1024).toFixed(1)} MB`;
+  } catch (e) {
+    size = '—';
+  }
+  return {
     id: uuidv4(),
-    name: `Tài liệu ${i + 1}`,
-    description: `Mô tả tài liệu ${i + 1}`,
-    category: categories[i % categories.length],
-    uploadedBy: tutor.id,
-    uploadDate: '2025-11-27',
-    size: `${(Math.random() * 5 + 1).toFixed(1)} MB`,
+    name: file,
+    description: `Tài liệu demo #${idx + 1}`,
+    category: ['lecture', 'exercise', 'reference'][idx % 3],
+    uploadedBy: tutor?.id,
+    uploadDate: '2025-11-30',
+    size,
     type: 'pdf',
-    url: `/files/document-${i + 1}.pdf`,
-  });
-}
+    url: `/uploads/resources/${file}`,
+    storedName: file,
+  };
+});
 
 const progresses = [];
 const members = users.filter((u) => u.role === 'member').slice(0, 10);
