@@ -14,12 +14,6 @@ CREATE TABLE IF NOT EXISTS users (
     skills TEXT[], -- Array of skills
     settings JSONB DEFAULT '{"emailNotif": true, "appNotif": true, "publicProfile": false, "allowContact": true}'::jsonb,
     devices JSONB DEFAULT '[]'::jsonb,
-    refresh_tokens TEXT[] DEFAULT '{}'::text[],
-    email_verified BOOLEAN DEFAULT false,
-    verification_token VARCHAR(255),
-    verification_token_expires TIMESTAMP,
-    reset_token VARCHAR(255),
-    reset_token_expires TIMESTAMP,
     status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'suspended')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
