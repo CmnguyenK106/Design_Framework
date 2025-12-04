@@ -1,5 +1,4 @@
 const { verifyToken } = require('../utils/jwt');
-const { users } = require('../data/users');
 
 module.exports = function auth(req, res, next) {
   const header = req.headers.authorization || '';
@@ -14,7 +13,7 @@ module.exports = function auth(req, res, next) {
   try {
     const decoded = verifyToken(token);
     req.user = decoded;
-    req.currentUser = users.find((u) => u.id === decoded.userId);
+    // Note: currentUser is removed as controllers now fetch user from DB when needed
     return next();
   } catch (err) {
     return res.status(401).json({

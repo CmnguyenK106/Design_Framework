@@ -95,7 +95,7 @@ export default function LoginPage() {
             <button
               type="button"
               className="text-primary hover:underline"
-              onClick={() => alert('Mock SSO demo: dùng admin/admin, tutor/tutor, 2312487/demo. Chưa hỗ trợ reset mật khẩu.')}
+              onClick={() => navigate('/forgot')}
             >
               Quên mật khẩu?
             </button>
@@ -103,7 +103,7 @@ export default function LoginPage() {
             <button
               type="button"
               className="text-primary hover:underline"
-              onClick={() => alert('Mock SSO demo: tài khoản demo đã có sẵn. Vui lòng dùng admin/admin, tutor/tutor, 2312487/demo.')}
+              onClick={() => navigate('/register')}
             >
               Chưa có tài khoản? Đăng ký
             </button>

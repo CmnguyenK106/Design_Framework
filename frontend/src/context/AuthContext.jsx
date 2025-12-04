@@ -11,18 +11,33 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const cached = localStorage.getItem(STORAGE_KEY);
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        setUser(parsed.user);
-        setToken(parsed.token);
-        setAuthToken(parsed.token);
-      } catch (err) {
-        localStorage.removeItem(STORAGE_KEY);
+    async function initAuth() {
+      const cached = localStorage.getItem(STORAGE_KEY);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          setUser(parsed.user);
+          setToken(parsed.token);
+          setAuthToken(parsed.token);
+          setLoading(false);
+          return;
+        } catch (err) {
+          localStorage.removeItem(STORAGE_KEY);
+        }
       }
+      try {
+        const res = await api.post('/auth/refresh');
+        const { token: jwt, user: refreshedUser } = res.data.data;
+        setUser(refreshedUser);
+        setToken(jwt);
+        setAuthToken(jwt);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ token: jwt, user: refreshedUser }));
+      } catch (err) {
+        // no refresh token or invalid
+      }
+      setLoading(false);
     }
-    setLoading(false);
+    initAuth();
   }, []);
 
   const login = async (username, password) => {
@@ -37,6 +52,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    api.post('/auth/logout').catch(() => {});
     setUser(null);
     setToken(null);
     setAuthToken(null);

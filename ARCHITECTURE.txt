@@ -1,0 +1,270 @@
+```
+╔════════════════════════════════════════════════════════════════════════════╗
+║                    TUTOR SUPPORT SYSTEM ARCHITECTURE                        ║
+║                        PostgreSQL Integration                               ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              FRONTEND LAYER                                  │
+│                           React + Vite + TailwindCSS                         │
+│                            http://localhost:5173                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
+│  │   Login      │  │   Dashboard   │  │   Profile    │  │   Sessions   │  │
+│  │   Page       │  │   (Role-based)│  │   Management │  │   Booking    │  │
+│  └──────┬───────┘  └──────┬────────┘  └──────┬───────┘  └──────┬───────┘  │
+│         │                 │                   │                  │           │
+│         └─────────────────┴───────────────────┴──────────────────┘           │
+│                                    │                                          │
+│                         JWT Token Authentication                             │
+│                         Axios HTTP Requests (JSON)                           │
+└────────────────────────────────────┬────────────────────────────────────────┘
+                                     │
+                          HTTP/HTTPS │ Port 3000
+                                     │
+┌────────────────────────────────────▼────────────────────────────────────────┐
+│                              BACKEND LAYER                                   │
+│                           Express.js + Node.js                               │
+│                            http://localhost:3000                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │                           API ROUTES                                    │ │
+│  ├────────────────────────────────────────────────────────────────────────┤ │
+│  │ /api/auth/*        → Authentication (✅ PostgreSQL)                     │ │
+│  │ /api/users/*       → User Management (✅ PostgreSQL)                    │ │
+│  │ /api/admin/*       → Admin Operations (✅ PostgreSQL)                   │ │
+│  │ /api/sessions/*    → Session Management (✅ PostgreSQL)                 │ │
+│  │ /api/feedback/*    → Feedback System (❌ Mock Data)                     │ │
+│  │ /api/messages/*    → Messaging (❌ Mock Data)                           │ │
+│  │ /api/notifications → Notifications (❌ Mock Data)                       │ │
+│  │ /api/resources/*   → Resources (❌ Mock Data)                           │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                     │                                         │
+│  ┌────────────────────────────────▼─────────────────────────────────────┐  │
+│  │                          MIDDLEWARE                                   │  │
+│  ├───────────────────────────────────────────────────────────────────────┤  │
+│  │  • auth.js          → JWT Verification                                │  │
+│  │  • roleCheck.js     → Role-based Access Control                       │  │
+│  │  • errorHandler.js  → Global Error Handling                           │  │
+│  └───────────────────────────────┬───────────────────────────────────────┘  │
+│                                  │                                           │
+│  ┌──────────────────────────────▼───────────────────────────────────────┐  │
+│  │                        CONTROLLERS                                    │  │
+│  ├───────────────────────────────────────────────────────────────────────┤  │
+│  │  • authController.js     (✅ Migrated)                                │  │
+│  │  • userController.js     (✅ Migrated)                                │  │
+│  │  • sessionController.js  (✅ Migrated)                                │  │
+│  │  • feedbackController.js (❌ Still Mock)                              │  │
+│  │  • messageController.js  (❌ Still Mock)                              │  │
+│  └───────────────────────────────┬───────────────────────────────────────┘  │
+│                                  │                                           │
+│  ┌──────────────────────────────▼───────────────────────────────────────┐  │
+│  │                      DATABASE LAYER                                   │  │
+│  ├───────────────────────────────────────────────────────────────────────┤  │
+│  │  database/models.js                                                   │  │
+│  │  ├─ UserModel                                                         │  │
+│  │  │  ├─ findByUsername()                                               │  │
+│  │  │  ├─ findById()                                                     │  │
+│  │  │  ├─ create()                                                       │  │
+│  │  │  └─ update()                                                       │  │
+│  │  │                                                                     │  │
+│  │  └─ SessionModel                                                      │  │
+│  │     ├─ findAll()                                                      │  │
+│  │     ├─ create()                                                       │  │
+│  │     ├─ addStudent()                                                   │  │
+│  │     └─ findOverlapping()                                              │  │
+│  └───────────────────────────────┬───────────────────────────────────────┘  │
+│                                  │                                           │
+│  ┌──────────────────────────────▼───────────────────────────────────────┐  │
+│  │                   CONNECTION POOL                                     │  │
+│  │                    database/db.js                                     │  │
+│  │               (Max 20 connections, auto-reconnect)                    │  │
+│  └───────────────────────────────┬───────────────────────────────────────┘  │
+│                                  │                                           │
+└──────────────────────────────────┼─────────────────────────────────────────┘
+                                   │
+                        SQL Queries │ Port 5432
+                                   │
+┌──────────────────────────────────▼─────────────────────────────────────────┐
+│                          DATABASE LAYER                                     │
+│                     PostgreSQL 15 (Docker Container)                        │
+│                            localhost:5432                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │                          DATABASE SCHEMA                                │ │
+│  ├────────────────────────────────────────────────────────────────────────┤ │
+│  │  ✅ users              (50+ rows)   → User accounts                    │ │
+│  │  ✅ sessions           (100+ rows)  → Tutoring sessions                │ │
+│  │  ✅ feedback           (30 rows)    → Session ratings                  │ │
+│  │  ✅ notifications      (20 rows)    → User notifications               │ │
+│  │  ✅ pair_requests      (empty)      → Tutor pairing                    │ │
+│  │  ✅ conversations      (empty)      → Chat threads                     │ │
+│  │  ✅ messages           (empty)      → Chat messages                    │ │
+│  │  ✅ resources          (15 rows)    → Learning materials               │ │
+│  │  ✅ resource_progress  (empty)      → Material tracking                │ │
+│  │  ✅ backups            (empty)      → System backups                   │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │                        DATABASE FEATURES                                │ │
+│  ├────────────────────────────────────────────────────────────────────────┤ │
+│  │  • ACID Transactions                                                   │ │
+│  │  • Foreign Key Constraints                                             │ │
+│  │  • Indexed Columns for Performance                                     │ │
+│  │  • Automatic Timestamps (created_at, updated_at)                       │ │
+│  │  • JSONB Support for Complex Data                                      │ │
+│  │  • Array Support for Multiple Values                                   │ │
+│  │  • Auto-initialization via init.sql                                    │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│  Volume: postgres_data (Persistent Storage)                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                   │
+                      HTTP │ Port 5050 (pgAdmin)
+                           │
+┌──────────────────────────▼──────────────────────────────────────────────────┐
+│                     DATABASE MANAGEMENT UI                                   │
+│                      pgAdmin 4 (Docker Container)                            │
+│                        http://localhost:5050                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │  Login: admin@tutorsupport.com / admin123                              │ │
+│  ├────────────────────────────────────────────────────────────────────────┤ │
+│  │  Features:                                                              │ │
+│  │  • SQL Query Tool                                                       │ │
+│  │  • Table Data Viewer                                                    │ │
+│  │  • Schema Designer                                                      │ │
+│  │  • Backup & Restore                                                     │ │
+│  │  • User Management                                                      │ │
+│  │  • Performance Monitoring                                               │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│  Volume: pgadmin_data (Persistent Configuration)                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║                           DATA FLOW EXAMPLE                                 ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+User Login Flow:
+─────────────────
+
+1. Frontend → POST /api/auth/login
+             {username: "admin", password: "admin"}
+             
+2. Backend  → authController.login()
+             → UserModel.findByUsername("admin")
+             → db.query("SELECT * FROM users WHERE username = $1")
+             
+3. PostgreSQL → Returns user record
+             
+4. Backend  → Generate JWT token
+             → Return {token, user}
+             
+5. Frontend → Store token in localStorage
+             → Redirect to dashboard
+
+
+Session Registration Flow:
+──────────────────────────
+
+1. Frontend → POST /api/sessions/{id}/register
+             Authorization: Bearer {token}
+             
+2. Backend  → sessionController.register()
+             → Verify JWT
+             → SessionModel.findById(sessionId)
+             → Check conflicts with SQL query
+             → SessionModel.addStudent(sessionId, studentId)
+             → db.query("UPDATE sessions SET students = array_append...")
+             
+3. PostgreSQL → Update session record
+             → Return updated session
+             
+4. Backend  → Return success response
+             
+5. Frontend → Update UI
+             → Show success message
+
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║                        MIGRATION STATUS                                     ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+✅ Completed (Database-backed):
+   • User Authentication
+   • User Profile Management
+   • Admin User CRUD
+   • Session Management
+   • Session Registration
+   • Conflict Detection
+
+❌ Still Mock Data (To be migrated):
+   • Feedback System
+   • Messaging System
+   • Notifications
+   • Resources
+   • Pair Requests
+   • Reports
+
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║                      DEPLOYMENT ARCHITECTURE                                ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+Docker Compose Network:
+──────────────────────
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                        tutor_network (Bridge)                        │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌───────────────────┐              ┌───────────────────┐          │
+│  │   postgres        │              │   pgadmin         │          │
+│  │   Container       │◄────────────►│   Container       │          │
+│  │   (DB Server)     │              │   (Web UI)        │          │
+│  └────────┬──────────┘              └───────────────────┘          │
+│           │                                                          │
+│           │ Port Mapping                                            │
+│           │ 5432:5432                                               │
+│           │                                                          │
+└───────────┼──────────────────────────────────────────────────────────┘
+            │
+            │ Host Network
+            ▼
+      localhost:5432
+            │
+            │ Connection Pool
+            ▼
+      Backend Server
+    (localhost:3000)
+
+
+Volume Persistence:
+──────────────────
+
+postgres_data     → Database files (persistent across restarts)
+pgadmin_data      → pgAdmin settings (persistent across restarts)
+
+
+Environment Variables:
+─────────────────────
+
+Backend (.env):
+  DB_HOST=localhost
+  DB_PORT=5432
+  DB_USER=tutor_admin
+  DB_PASSWORD=tutor_password
+  DB_NAME=tutor_support
+
+Docker Compose:
+  POSTGRES_DB=tutor_support
+  POSTGRES_USER=tutor_admin
+  POSTGRES_PASSWORD=tutor_password
+  PGADMIN_DEFAULT_EMAIL=admin@tutorsupport.com
+  PGADMIN_DEFAULT_PASSWORD=admin123
+```
