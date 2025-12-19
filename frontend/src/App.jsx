@@ -1,11 +1,12 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedLayout from './components/layout/ProtectedLayout';
-import LoginPage from './pages/Login';
-import RegisterPage from './pages/Register';
+import Login from './pages/Login';
+import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
-import VerifyEmail from './pages/VerifyEmail';
+// Email verification disabled
+// import VerifyEmail from './pages/VerifyEmail';
 import RoleRedirect from './pages/RoleRedirect';
 import StudentDashboard from './pages/student/Dashboard';
 import StudentProfile from './pages/student/Profile';
@@ -33,11 +34,12 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           <Route path="/forgot" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/verify" element={<VerifyEmail />} />
+          {/* Email verification disabled */}
+          {/* <Route path="/verify" element={<VerifyEmail />} /> */}
           <Route element={<ProtectedLayout />}>
             <Route path="/" element={<RoleRedirect />} />
             <Route path="/student/dashboard" element={<StudentDashboard />} />

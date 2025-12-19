@@ -4,8 +4,8 @@ const UserModel = {
   // Create a new user
   create: async (userData) => {
     const query = `
-      INSERT INTO users (id, username, password, role, name, mssv, email, phone, khoa, chuyen_nganh, avatar, skills, settings, devices, refresh_tokens, email_verified, verification_token, verification_token_expires, reset_token, reset_token_expires, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+      INSERT INTO users (id, username, password, role, name, mssv, email, phone, khoa, chuyen_nganh, avatar, skills, settings, devices, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *
     `;
     const values = [
@@ -23,12 +23,6 @@ const UserModel = {
       userData.skills || [],
       userData.settings || { emailNotif: true, appNotif: true, publicProfile: false, allowContact: true },
       userData.devices || [],
-      userData.refresh_tokens || [],
-      userData.email_verified || false,
-      userData.verification_token || null,
-      userData.verification_token_expires || null,
-      userData.reset_token || null,
-      userData.reset_token_expires || null,
       userData.status || 'active',
     ];
     const result = await db.query(query, values);
@@ -50,21 +44,6 @@ const UserModel = {
   // Find user by email
   findByEmail: async (email) => {
     const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-    return result.rows[0];
-  },
-
-  findByVerificationToken: async (token) => {
-    const result = await db.query('SELECT * FROM users WHERE verification_token = $1', [token]);
-    return result.rows[0];
-  },
-
-  findByRefreshToken: async (token) => {
-    const result = await db.query('SELECT * FROM users WHERE $1 = ANY(refresh_tokens)', [token]);
-    return result.rows[0];
-  },
-
-  findByResetToken: async (token) => {
-    const result = await db.query('SELECT * FROM users WHERE reset_token = $1', [token]);
     return result.rows[0];
   },
 
@@ -119,21 +98,6 @@ const UserModel = {
       'UPDATE users SET password = $1 WHERE id = $2 RETURNING *',
       [newPassword, id]
     );
-    return result.rows[0];
-  },
-
-  addRefreshToken: async (id, token) => {
-    const result = await db.query('UPDATE users SET refresh_tokens = array_append(refresh_tokens, $1) WHERE id = $2 RETURNING *', [token, id]);
-    return result.rows[0];
-  },
-
-  removeRefreshToken: async (id, token) => {
-    const result = await db.query('UPDATE users SET refresh_tokens = array_remove(refresh_tokens, $1) WHERE id = $2 RETURNING *', [token, id]);
-    return result.rows[0];
-  },
-
-  clearAllRefreshTokens: async (id) => {
-    const result = await db.query('UPDATE users SET refresh_tokens = $1 WHERE id = $2 RETURNING *', [[], id]);
     return result.rows[0];
   },
 };
@@ -269,6 +233,29 @@ const SessionModel = {
        WHERE id = $2
        RETURNING *`,
       [studentId, sessionId]
+    );
+    return result.rows[0];
+  },
+
+  // Find user by verification token
+  findByVerificationToken: async (token) => {
+    const result = await db.query(
+      'SELECT * FROM users WHERE verification_token = $1 AND verification_token_expires > NOW()',
+      [token]
+    );
+    return result.rows[0];
+  },
+
+  // Update email verification status
+  verifyEmail: async (userId) => {
+    const result = await db.query(
+      `UPDATE users 
+       SET email_verified = true, 
+           verification_token = NULL, 
+           verification_token_expires = NULL 
+       WHERE id = $1 
+       RETURNING *`,
+      [userId]
     );
     return result.rows[0];
   },

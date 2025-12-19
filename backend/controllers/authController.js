@@ -5,6 +5,37 @@ const { UserModel } = require('../database/models');
 const { signToken, signRefreshToken, verifyRefreshToken } = require('../utils/jwt');
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
+// Email transporter configuration
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD,
+  },
+});
+
+// Send verification email with 6-digit code
+async function sendVerificationEmail(email, code) {
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: 'Xác thực email - Design Framework',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Xác thực email của bạn</h2>
+        <p>Cảm ơn bạn đã đăng ký! Vui lòng sử dụng mã xác thực sau để hoàn tất đăng ký:</p>
+        <div style="background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; margin: 20px 0;">
+          ${code}
+        </div>
+        <p>Mã xác thực này có hiệu lực trong 10 phút.</p>
+        <p>Nếu bạn không yêu cầu đăng ký, vui lòng bỏ qua email này.</p>
+      </div>
+    `,
+  };
+
+  return transporter.sendMail(mailOptions);
+}
+
 // Demo accounts for login page display
 const DEMO_USERS = [
   { username: 'admin', password: 'admin', role: 'admin', label: 'Admin Account' },
@@ -26,11 +57,20 @@ async function login(req, res) {
     if (!user) {
       return res.status(401).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Sai MSSV hoặc mật khẩu' } });
     }
-    if (!user.email_verified) {
-      return res.status(403).json({ success: false, error: { code: 'EMAIL_NOT_VERIFIED', message: 'Email chưa được xác thực. Vui lòng kiểm tra email.' } });
+    
+    // Check if password is hashed (bcrypt hashes start with $2a$, $2b$, or $2y$)
+    const isHashed = /^\$2[ayb]\$/.test(user.password);
+    let isMatch = false;
+    
+    if (isHashed) {
+      // Compare with hashed password
+      isMatch = await bcrypt.compare(password, user.password);
+    } else {
+      // Compare with plain text password (for legacy users)
+      isMatch = password === user.password;
     }
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
+    
+    if (!isMatch) {
       return res.status(401).json({
         success: false,
         error: { code: 'INVALID_CREDENTIALS', message: 'Sai MSSV hoặc mật khẩu' },
@@ -39,7 +79,6 @@ async function login(req, res) {
 
     const token = signToken({ userId: user.id, role: user.role, email: user.email });
     const refreshToken = signRefreshToken({ userId: user.id });
-    await UserModel.addRefreshToken(user.id, refreshToken);
     const { password: omitted, ...safeUser } = user; // remove password
 
     // Set refresh token as HttpOnly cookie
@@ -63,13 +102,6 @@ async function login(req, res) {
 
 async function logout(req, res) {
   try {
-    const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
-    if (refreshToken) {
-      const user = await UserModel.findByRefreshToken(refreshToken);
-      if (user) {
-        await UserModel.removeRefreshToken(user.id, refreshToken);
-      }
-    }
     // Clear cookie
     res.clearCookie('refreshToken');
     return res.json({ success: true, data: { message: 'Đã đăng xuất' } });
@@ -129,16 +161,14 @@ async function register(req, res) {
     const allowedRoles = ['member', 'tutor'];
     const userRole = allowedRoles.includes(role) ? role : 'member';
 
-    // Create new user (hash password, create verification token)
-    const hashedPass = await bcrypt.hash(password, 12);
-    const verificationToken = uuidv4();
-    const verificationTokenExpires = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     // Create new user
     const newUser = await UserModel.create({
       id: uuidv4(),
       username: username.trim(),
-      password: hashedPass,
+      password: hashedPassword,
       role: userRole,
       name: name.trim(),
       mssv: userMssv,
@@ -155,28 +185,32 @@ async function register(req, res) {
         allowContact: true,
       },
       devices: [],
-      refresh_tokens: [],
-      email_verified: false,
-      verification_token: verificationToken,
-      verification_token_expires: verificationTokenExpires,
-      reset_token: null,
-      reset_token_expires: null,
       status: 'active',
     });
 
     const { password: omitted, ...safeUser } = newUser;
 
-    // Send verification email
-    try {
-      const transporter = nodemailer.createTransport({ host: process.env.SMTP_HOST || 'localhost', port: process.env.SMTP_PORT || 1025, secure: false });
-      const verifyLink = `${FRONTEND_URL}/verify?token=${verificationToken}`;
-      await transporter.sendMail({ from: process.env.SMTP_FROM || 'no-reply@tutorsupport.com', to: newUser.email, subject: 'Xác thực email - Tutor Support', text: `Click to verify: ${verifyLink}`, html: `Nhấn <a href="${verifyLink}">vào đây</a> để xác thực email.` });
-    } catch (emailErr) {
-      console.error('Error sending verification email:', emailErr);
-    }
+    // Auto-login after registration: generate tokens
+    const accessToken = signToken({ userId: newUser.id, role: newUser.role });
+    const refreshToken = signRefreshToken({ userId: newUser.id });
 
-    // Don't auto issue tokens until email verification; send success response
-    return res.status(201).json({ success: true, data: { user: safeUser, message: 'Đăng ký thành công, vui lòng xác thực email.' } });
+    // Set refresh token as httpOnly cookie
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    // Return success with tokens for auto-login
+    return res.status(201).json({ 
+      success: true, 
+      data: { 
+        user: safeUser, 
+        token: accessToken,
+        message: 'Đăng ký thành công!' 
+      } 
+    });
   } catch (error) {
     console.error('Register error:', error);
     return res.status(500).json({
@@ -211,65 +245,27 @@ async function refresh(req, res) {
 }
 
 async function forgot(req, res) {
-  try {
-    const { email } = req.body || {};
-    if (!email) return res.status(400).json({ success: false, error: { message: 'Email required' } });
-    const user = await UserModel.findByEmail(email);
-    if (!user) return res.status(200).json({ success: true, data: { message: 'If email exists you will receive a reset link' } });
-    const resetToken = uuidv4();
-    const resetExpires = new Date(Date.now() + 3600 * 1000).toISOString(); // 1 hour
-    await UserModel.update(user.id, { reset_token: resetToken, reset_token_expires: resetExpires });
-    // Send reset email
-    try {
-      const transporter = nodemailer.createTransport({ host: process.env.SMTP_HOST || 'localhost', port: process.env.SMTP_PORT || 1025, secure: false });
-      const resetLink = `${FRONTEND_URL}/reset-password?token=${resetToken}`;
-      await transporter.sendMail({ from: process.env.SMTP_FROM || 'no-reply@tutorsupport.com', to: user.email, subject: 'Reset password token', text: `Reset: ${resetLink}`, html: `Reset your password <a href="${resetLink}">here</a>` });
-    } catch (mailErr) {
-      console.error('Forgot email sending error:', mailErr);
-    }
-    return res.json({ success: true, data: { message: 'If email exists you will receive a reset link' } });
-  } catch (err) {
-    console.error('Forgot error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to send reset email' });
-  }
+  // Disabled: requires reset_token and reset_token_expires columns
+  return res.status(501).json({ 
+    success: false, 
+    error: { message: 'Tính năng đặt lại mật khẩu tạm thời không khả dụng' } 
+  });
 }
 
 async function reset(req, res) {
-  try {
-    const { token, newPassword } = req.body || {};
-    if (!token || !newPassword) return res.status(400).json({ success: false, error: { message: 'Token and new password required' } });
-    const user = await UserModel.findByResetToken(token);
-    if (!user) return res.status(400).json({ success: false, error: { message: 'Invalid or expired reset token' } });
-    if (!user.reset_token_expires || new Date(user.reset_token_expires) < new Date()) {
-      return res.status(400).json({ success: false, error: { message: 'Invalid or expired reset token' } });
-    }
-    if (newPassword.length < 6) return res.status(400).json({ success: false, error: { message: 'Mật khẩu phải có ít nhất 6 ký tự' } });
-    const hashed = await bcrypt.hash(newPassword, 12);
-    await UserModel.updatePassword(user.id, hashed);
-    // Clear reset token
-    await UserModel.update(user.id, { reset_token: null, reset_token_expires: null });
-    return res.json({ success: true, data: { message: 'Password reset successfully' } });
-  } catch (err) {
-    console.error('Reset error:', err);
-    return res.status(500).json({ success: false, message: 'Reset failed' });
-  }
+  // Disabled: requires reset_token and reset_token_expires columns
+  return res.status(501).json({ 
+    success: false, 
+    error: { message: 'Tính năng đặt lại mật khẩu tạm thời không khả dụng' } 
+  });
 }
 
 async function verify(req, res) {
-  try {
-    const token = req.params.token || req.body?.token;
-    if (!token) return res.status(400).json({ success: false, error: { message: 'Verification token required' } });
-    const user = await UserModel.findByVerificationToken(token);
-    if (!user) return res.status(400).json({ success: false, error: { message: 'Invalid verification token' } });
-    if (user.verification_token_expires && new Date(user.verification_token_expires) < new Date()) {
-      return res.status(400).json({ success: false, error: { message: 'Verification token expired' } });
-    }
-    await UserModel.update(user.id, { email_verified: true, verification_token: null, verification_token_expires: null });
-    return res.json({ success: true, data: { message: 'Email verified successfully' } });
-  } catch (err) {
-    console.error('Verify error:', err);
-    return res.status(500).json({ success: false, message: 'Verify failed' });
-  }
+  // Disabled: email verification not required
+  return res.status(501).json({ 
+    success: false, 
+    error: { message: 'Tính năng xác thực email tạm thời không khả dụng' } 
+  });
 }
 
 module.exports = { login, logout, register, refresh, forgot, reset, verify };

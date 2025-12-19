@@ -43,11 +43,34 @@ export default function RegisterPage() {
       });
 
       if (response.data.success) {
-        alert('Đăng ký thành công! Vui lòng đăng nhập.');
-        navigate('/login');
+        // Auto-login after successful registration
+        if (response.data.data.token && response.data.data.user) {
+          localStorage.setItem('token', response.data.data.token);
+          localStorage.setItem('user', JSON.stringify(response.data.data.user));
+          alert('Đăng ký thành công!');
+          navigate('/');
+        } else {
+          alert('Đăng ký thành công! Vui lòng đăng nhập.');
+          navigate('/login');
+        }
       }
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại.';
+      // Display detailed error message from backend
+      console.log('Full error object:', err);
+      console.log('Error response:', err.response);
+      console.log('Error response data:', err.response?.data);
+      
+      // Extract error message from multiple possible paths
+      let errorMessage = 'Đăng ký thất bại. Vui lòng thử lại.';
+      
+      if (err.response?.data) {
+        const data = err.response.data;
+        // Try different error message paths
+        errorMessage = data.error?.message || data.message || data.error || errorMessage;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
       setError(errorMessage);
       console.error('Registration error:', err.response?.data || err.message);
     } finally {

@@ -9,6 +9,7 @@ router.post('/logout', logout);
 router.post('/refresh', refresh);
 router.post('/forgot', forgot);
 router.post('/reset', reset);
-router.get('/verify/:token', verify);
+// Email verification disabled
+// router.post('/verify', verify);
 
 module.exports = router;

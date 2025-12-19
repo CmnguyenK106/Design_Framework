@@ -29,6 +29,7 @@ export default function MessagesLayout() {
   const [groupUsers, setGroupUsers] = useState([]);
   const [groupName, setGroupName] = useState('');
   const [showGroupModal, setShowGroupModal] = useState(false);
+  const [showNewMessage, setShowNewMessage] = useState(false);
 
   const loadConversations = () => {
     api.get('/messages/conversations')
@@ -75,7 +76,7 @@ export default function MessagesLayout() {
       return () => clearInterval(interval);
     }
     return undefined;
-  }, [selectedId]);
+  }, [selectedId, user?.id]);
 
   const filtered = useMemo(() => conversations.filter((c) => {
     if (filter === 'marked' && !c.isMarked) return false;
@@ -157,9 +158,12 @@ export default function MessagesLayout() {
     setUserSearch(q);
     try {
       const res = await api.get('/messages/users', { params: { q } });
-      setUserResults(res.data.data);
+      console.log('Search users response:', res.data.data);
+      setUserResults(res.data.data || []);
     } catch (err) {
+      console.error('Search users error:', err);
       setUserResults([]);
+      setStatus(err.message || 'Không thể tải danh sách người dùng');
     }
   };
 
@@ -227,6 +231,97 @@ export default function MessagesLayout() {
   return (
     <div className="grid gap-4 lg:grid-cols-12">
       <aside className="lg:col-span-3 rounded-xl bg-white p-3 shadow-sm border border-gray-100 flex flex-col">
+        {/* New Message Button */}
+        <button
+          type="button"
+          onClick={() => {
+            const newState = !showNewMessage;
+            setShowNewMessage(newState);
+            if (newState) {
+              // Load all users when opening
+              searchUsers('');
+            }
+          }}
+          className="mb-3 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Tin nhắn mới
+        </button>
+
+        {/* Search Users Panel */}
+        {showNewMessage && (
+          <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-semibold text-gray-900">Tìm người để nhắn tin</p>
+              <button
+                type="button"
+                onClick={() => setShowNewMessage(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2">
+              <Search size={16} className="text-gray-500" />
+              <input
+                value={userSearch}
+                onChange={(e) => searchUsers(e.target.value)}
+                className="w-full border-none text-sm focus:outline-none"
+                placeholder="Nhập tên, username hoặc email..."
+                autoFocus
+              />
+            </div>
+            {userResults.length > 0 ? (
+              <div className="mt-2 max-h-60 overflow-y-auto space-y-1">
+                {userResults.map((u) => (
+                  <div
+                    key={u.id}
+                    className="flex items-center justify-between rounded-md bg-white border border-gray-200 px-3 py-2.5 hover:border-blue-400 hover:bg-blue-50 transition-all"
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold text-sm">
+                        {u.name?.charAt(0) || '?'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-sm text-gray-900 truncate">{u.name}</div>
+                        <div className="text-xs text-gray-600 truncate">{u.username} • {u.role}</div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="flex-shrink-0 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors"
+                      onClick={() => {
+                        startConversation(u.id);
+                        setShowNewMessage(false);
+                        setUserSearch('');
+                      }}
+                    >
+                      Nhắn tin
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-3 text-center py-6">
+                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <p className="mt-2 text-sm text-gray-500">
+                  {userSearch ? 'Không tìm thấy người dùng' : 'Nhập tên để tìm người dùng'}
+                </p>
+                <p className="mt-1 text-xs text-gray-400">
+                  Hoặc bấm nút "Tin nhắn mới" để xem tất cả người dùng
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Conversation Search */}
         <div className="mb-3 flex items-center gap-2 rounded-md border px-2 py-1">
           <Search size={16} className="text-gray-500" />
           <input
@@ -295,52 +390,25 @@ export default function MessagesLayout() {
           })}
           {filtered.length === 0 && <p className="text-sm text-gray-500">Không có hội thoại.</p>}
         </div>
+        
+        {/* Group Chat Section */}
         <div className="mt-3 border-t pt-3">
-          <p className="mb-2 text-xs font-semibold text-gray-700">Tìm người để nhắn tin</p>
-          <div className="flex items-center gap-2 rounded-md border px-2 py-1">
-            <Search size={16} className="text-gray-500" />
+          <div className="rounded-md border bg-gray-50 p-3">
+            <p className="text-xs font-semibold text-gray-700">Tạo nhóm chat</p>
             <input
-            value={userSearch}
-            onChange={(e) => searchUsers(e.target.value)}
-            className="w-full border-none text-sm focus:outline-none"
-            placeholder="Nhập tên/username/email"
-          />
-        </div>
-        {userResults.length > 0 && (
-          <div className="mt-2 max-h-40 overflow-y-auto rounded-md border bg-white shadow-sm">
-            {userResults.map((u) => (
-              <div key={u.id} className="flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-50">
-                <div className="space-y-1">
-                  <div className="font-semibold text-gray-900">{u.name}</div>
-                  <div className="text-xs text-gray-600">{u.email}</div>
-                </div>
-                <button
-                  type="button"
-                  className="rounded-md border px-2 py-1 text-xs font-semibold text-primary"
-                  onClick={() => startConversation(u.id)}
-                >
-                  Nhắn riêng
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-            <div className="mt-3 rounded-md border bg-gray-50 p-3">
-              <p className="text-xs font-semibold text-gray-700">Tạo nhóm chat</p>
-              <input
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                className="mt-2 w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
-                placeholder="Tên nhóm (tùy chọn)"
-              />
-              <div className="mt-2 flex flex-wrap gap-2">
-                {groupUsers.map((u) => (
-                  <span key={u.id} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
-                    {u.name}
-                    <button type="button" onClick={() => setGroupUsers((prev) => prev.filter((x) => x.id !== u.id))}>×</button>
-                  </span>
-                ))}
-              </div>
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              className="mt-2 w-full rounded-md border border-gray-300 px-2 py-1 text-sm"
+              placeholder="Tên nhóm (tùy chọn)"
+            />
+            <div className="mt-2 flex flex-wrap gap-2">
+              {groupUsers.map((u) => (
+                <span key={u.id} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
+                  {u.name}
+                  <button type="button" onClick={() => setGroupUsers((prev) => prev.filter((x) => x.id !== u.id))}>×</button>
+                </span>
+              ))}
+            </div>
             <div className="mt-2 flex gap-2">
               <button
                 type="button"

@@ -12,30 +12,25 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     async function initAuth() {
-      const cached = localStorage.getItem(STORAGE_KEY);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          setUser(parsed.user);
-          setToken(parsed.token);
-          setAuthToken(parsed.token);
-          setLoading(false);
-          return;
-        } catch (err) {
-          localStorage.removeItem(STORAGE_KEY);
-        }
-      }
       try {
-        const res = await api.post('/auth/refresh');
-        const { token: jwt, user: refreshedUser } = res.data.data;
-        setUser(refreshedUser);
-        setToken(jwt);
-        setAuthToken(jwt);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ token: jwt, user: refreshedUser }));
-      } catch (err) {
-        // no refresh token or invalid
+        const cached = localStorage.getItem(STORAGE_KEY);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            setUser(parsed.user);
+            setToken(parsed.token);
+            setAuthToken(parsed.token);
+          } catch (err) {
+            localStorage.removeItem(STORAGE_KEY);
+          }
+        }
+        // Skip refresh check - let user login manually if needed
+        // This prevents hanging when backend is unavailable
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     initAuth();
   }, []);

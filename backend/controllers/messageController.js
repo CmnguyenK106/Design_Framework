@@ -1,24 +1,40 @@
 const fs = require('fs');
 const path = require('path');
 const { conversations, messages } = require('../data/messages');
-const { users } = require('../data/users');
+const { UserModel } = require('../database/models');
 const { v4: uuidv4 } = require('uuid');
 
-function listConversations(req, res) {
-  const userId = req.user.userId;
-  const data = conversations
-    .filter((c) => c.participants.includes(userId))
-    .map((c) => ({
+async function listConversations(req, res) {
+  try {
+    const userId = req.user.userId;
+    const userConversations = conversations.filter((c) => c.participants.includes(userId));
+    
+    // Fetch all users from database to get participant details
+    const allUsers = await UserModel.findAll();
+    
+    const data = userConversations.map((c) => ({
       ...c,
       unreadCount: c.unread?.[userId] || 0,
       participantsDetail: c.participants.map((id) => {
-        const u = users.find((x) => x.id === id);
-        return {
-          id: u?.id, name: u?.name, role: u?.role, email: u?.email, avatar: u?.avatar,
-        };
-      }),
+        const u = allUsers.find((x) => x.id === id);
+        return u ? {
+          id: u.id, 
+          name: u.name, 
+          role: u.role, 
+          email: u.email, 
+          avatar: u.avatar,
+        } : null;
+      }).filter(Boolean),
     }));
-  return res.json({ success: true, data });
+    
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error('List conversations error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: { code: 'SERVER_ERROR', message: 'Failed to load conversations' } 
+    });
+  }
 }
 
 function getMessages(req, res) {
@@ -27,6 +43,7 @@ function getMessages(req, res) {
     return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Không tìm thấy hội thoại' } });
   }
   const list = messages.filter((m) => m.conversationId === convo.id).sort((a, b) => (a.timestamp > b.timestamp ? 1 : -1));
+  console.log(`[Messages] User ${req.user.userId} fetching conversation ${req.params.id}: ${list.length} messages`);
   return res.json({ success: true, data: list });
 }
 
@@ -96,6 +113,7 @@ function sendMessage(req, res) {
   };
   messages.push(msg);
   convo.lastMessage = { content: msg.content || 'Attachment', timestamp: msg.timestamp, senderId: msg.senderId };
+  console.log(`[Messages] User ${req.user.userId} sent message to conversation ${conversationId}. Total messages: ${messages.length}`);
   // Increase unread for others
   convo.participants.forEach((pid) => {
     if (!convo.unread) convo.unread = {};
@@ -154,26 +172,46 @@ function downloadAttachment(req, res) {
   return res.download(filePath, attachment.name);
 }
 
-function searchUsers(req, res) {
-  const q = (req.query.q || '').toLowerCase();
-  const base = users
-    .filter((u) => u.id !== req.user.userId)
-    .filter((u) => (u.status ? u.status !== 'inactive' : true));
+async function searchUsers(req, res) {
+  try {
+    const q = (req.query.q || '').toLowerCase();
+    
+    // Get all users from database except current user and inactive users
+    const allUsers = await UserModel.findAll();
+    
+    const base = allUsers
+      .filter((u) => u.id !== req.user.userId)
+      .filter((u) => u.status !== 'inactive');
 
-  let result = base
-    .filter((u) => (q ? `${u.name} ${u.username} ${u.email}`.toLowerCase().includes(q) : true));
+    let result = base;
+    
+    // Filter by search query if provided
+    if (q) {
+      result = base.filter((u) => 
+        `${u.name} ${u.username} ${u.email}`.toLowerCase().includes(q)
+      );
+    }
 
-  // Nếu không tìm thấy khi có filter, trả về gợi ý chung
-  if (result.length === 0) {
-    result = base;
+    // Limit to 50 results
+    result = result
+      .slice(0, 50)
+      .map((u) => ({
+        id: u.id, 
+        name: u.name, 
+        username: u.username, 
+        role: u.role, 
+        email: u.email, 
+        avatar: u.avatar,
+      }));
+      
+    return res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Search users error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: { code: 'SERVER_ERROR', message: 'Failed to search users' } 
+    });
   }
-
-  result = result
-    .slice(0, 50)
-    .map((u) => ({
-      id: u.id, name: u.name, username: u.username, role: u.role, email: u.email, avatar: u.avatar,
-    }));
-  return res.json({ success: true, data: result });
 }
 
 function markConversationRead(req, res) {
